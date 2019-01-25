@@ -18,6 +18,7 @@ from attacks.DHCP_Spoofing_Attack import DHCP_Spoofing
 from attacks.IP_Spoofing import IP_Spoofing
 from attacks.ARP_Spoofing import ARP_Spoofing
 from attacks.HSRP_Abuse_Attack import HSRP_Abuse
+from attacks.STP_ROOT_Attack import STP_ROOT
 
 #GUI Interface
 ''''
@@ -71,8 +72,10 @@ for row in range(1,sheet.nrows):
         #ip_spoofing.check(telnet)
         #arp_spoofing = ARP_Spoofing(server_ip,host,configDirectory)
         #arp_spoofing.check(telnet)
-        hsrp = HSRP_Abuse(server_ip,host,configDirectory)
-        hsrp.check(telnet)
+        #hsrp = HSRP_Abuse(server_ip,host,configDirectory)
+        #hsrp.check(telnet)
+        stp_root = STP_ROOT(server_ip,host,configDirectory)
+        stp_root.check(telnet)
         telnet.close()
         characteristics.remove()
 
@@ -102,6 +105,10 @@ for row in range(1,sheet.nrows):
         #ip_spoofing.check(ssh)
         #arp_spoofing = ARP_Spoofing(server_ip,host,configDirectory)
         #arp_spoofing.check(ssh)
+        #hsrp = HSRP_Abuse(server_ip,host,configDirectory)
+        #hsrp.check(ssh)
+        stp_root = STP_ROOT(server_ip,host,configDirectory)
+        stp_root.check(ssh)
         characteristics.remove()
         ssh.close()
 

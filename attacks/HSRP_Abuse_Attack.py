@@ -72,7 +72,8 @@ class HSRP_Abuse:
         for interface in interfaces:
             if re.search("standby",interface,re.MULTILINE):
                 output = re.findall("standby ([0-9]+)",interface,re.MULTILINE)
-                self.vulnerableInterfaces.append([interface.split('\n')[0].strip(),output[0]])
+                if re.search("standby "+output[0]+" authentication md5 ",interface,re.MULTILINE)==None:
+                    self.vulnerableInterfaces.append([interface.split('\n')[0].strip(),output[0]])
 
 
 

@@ -1,4 +1,5 @@
 import os
+import re
 from tools.telnet import Telnet
 from tools.ssh_v2 import SshVersionII
 
@@ -10,28 +11,28 @@ class STP_ROOT:
         self.configDirectory = configDirectory
 
     def checkByTelnet(self,telnet):
-        telnet.execute("show spanning-tree | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_root_config")
+        telnet.execute("show spanning-tree root port | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_root_config")
         telnet.readUntil(b"!")
         telnet.readUntil(b"#")
         output = open(self.configDirectory+"/"+self.host+"_stp_root_config").read().strip()
-        mode = self.getMode(output)
-        '''
-        if "Transparent" in mode or "Off" in mode:
-            print("device "+self.host+" is not vulnerable to vtp attacks")
+        running_config = open(self.configDirectory+"/"+self.host+"_running_config").read().strip()
+        interfaces = self.getVulnerableTrunkInterfaces(output,running_config)
+        if len(interfaces)==0:
+            print("device "+self.host+" is not vulnerable to STP Root attack")
         else:
-            print("device "+self.host+" is vulnerable to vtp attacks")
+            print("device "+self.host+" is vulnerable to STP Root attack")
             telnet.execute("conf t")
-            telnet.execute("vtp domain cisco")
-            telnet.execute("vtp password cisco")
-            telnet.execute("vtp mode transparent")
+            for interface in interfaces:
+                telnet.execute("interface "+interface)
+                telnet.execute("spanning-tree guard root")
+                telnet.execute("exit")
             telnet.execute("end")
-        '''
         os.remove(self.configDirectory+"/"+self.host+"_stp_root_config")
 
     def checkBySSH(self,ssh):
         output = ssh.exec("show spanning-tree | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_root_config")
         output = open(self.configDirectory+"/"+self.host+"_stp_root_config").read().strip()
-        mode = self.getMode(output)
+        print(output)
         '''
         if "Transparent" in mode or "Off" in mode:
             print("device "+self.host+" is not vulnerable to vtp attacks")
@@ -49,8 +50,21 @@ class STP_ROOT:
         elif isinstance(accessMethod,SshVersionII):
             self.checkBySSH(accessMethod)
 
-    def getVlans(self,show):
-        lines = show.split('\n')
-        for line in lines:
-            if "VTP Operating Mode" in line:
-                return line
+
+
+    def getVulnerableTrunkInterfaces(self,stp_output,running_config):
+        root_ports = []
+        for line in stp_output.split('\n'):
+            parts = line.split()
+            if parts[1]!="This":
+                if parts[1] not in root_ports:
+                    root_ports.append(parts[1])
+        trunkInterfaces = []
+        interfaces = re.findall("interface([^!]*)",running_config,re.MULTILINE)
+        for interface in interfaces:
+            if interface.split('\n')[0].strip() not in root_ports:
+                if re.search("switchport mode trunk",interface,re.MULTILINE):
+                    if re.search("spanning-tree guard root\n",interface,re.MULTILINE)==None:
+                        trunkInterfaces.append(interface.split('\n')[0].strip())
+        return trunkInterfaces
+
