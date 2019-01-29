@@ -1,6 +1,7 @@
 from tools.telnet import Telnet
 from tools.ssh_v2 import SshVersionII
 import os
+import re
 
 class Characteristics:
     def __init__(self,server_ip,host,configDirectory,accessMode):
@@ -24,6 +25,11 @@ class Characteristics:
 
     def getSTPBPDU(self):
         self.execute("")
+
+    def getInterfaces(self,running_config):
+        interfaces = re.findall("interface([^!]*)",running_config,re.MULTILINE)
+        return interfaces
+
 
     def execute(self,cmd):
         if isinstance(self.accessMode,Telnet):

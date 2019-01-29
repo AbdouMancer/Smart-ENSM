@@ -29,19 +29,27 @@ class STP_ROOT:
             telnet.execute("end")
         os.remove(self.configDirectory+"/"+self.host+"_stp_root_config")
 
-    def checkBySSH(self,ssh):
-        output = ssh.exec("show spanning-tree | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_root_config")
-        output = open(self.configDirectory+"/"+self.host+"_stp_root_config").read().strip()
-        print(output)
-        '''
-        if "Transparent" in mode or "Off" in mode:
-            print("device "+self.host+" is not vulnerable to vtp attacks")
+    def checkInterfaceByTelnet(self,telnet,interface_config):
+        if re.search("spanning-tree guard root\n",interface_config,re.MULTILINE)==None:
+            print("the interface is vulnerable to STP Root Attack")
+            telnet.execute("conf t")
+            telnet.execute("interface "+interface_config.split('\n')[0].strip())
+            telnet.execute("spanning-tree guard root")
+            telnet.execute("end")
         else:
-            print("device "+self.host+" is vulnerable to vtp attacks")
-            ssh.conf("vtp domain cisco")
-            ssh.conf("vtp password cisco")
-            ssh.conf("vtp mode transparent")
-        '''
+            print("the interface is not vulnerable to STP Root Attack")
+
+    def checkBySSH(self,ssh):
+        output = ssh.exec("show spanning-tree root port | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_root_config")
+        output = open(self.configDirectory+"/"+self.host+"_stp_root_config").read().strip()
+        running_config = open(self.configDirectory+"/"+self.host+"_running_config").read().strip()
+        interfaces = self.getVulnerableTrunkInterfaces(output,running_config)
+        if len(interfaces)==0:
+            print("device "+self.host+" is not vulnerable to STP Root attack")
+        else:
+            print("device "+self.host+" is vulnerable to STP Root attack")
+            for interface in interfaces:
+                ssh.conf(["interface "+interface,"spanning-tree guard root","exit"])
         os.remove(self.configDirectory+"/"+self.host+"_stp_root_config")
 
     def check(self,accessMethod):
@@ -50,6 +58,11 @@ class STP_ROOT:
         elif isinstance(accessMethod,SshVersionII):
             self.checkBySSH(accessMethod)
 
+    def checkInterface(self,accessMethod,interface_config):
+        if isinstance(accessMethod,Telnet):
+            self.checkInterfaceByTelnet(accessMethod,interface_config)
+        elif isinstance(accessMethod,SshVersionII):
+            self.checkInterfaceBySSH(accessMethod,interface_config)
 
 
     def getVulnerableTrunkInterfaces(self,stp_output,running_config):

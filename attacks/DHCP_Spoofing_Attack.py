@@ -11,7 +11,7 @@ class DHCP_Spoofing:
         self.configDirectory = configDirectory
 
 
-    def checkByTelnet(self,telnet):
+    def checkDeviceByTelnet(self,telnet):
         #telnet.execute("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #telnet.readUntil(b"!")
         #telnet.readUntil(b"#")
@@ -30,6 +30,7 @@ class DHCP_Spoofing:
             telnet.execute("no ip dhcp snooping information option")
             telnet.execute("ip dhcp snooping database flash:dhcp-snooping-database.txt")
             telnet.execute("ip dhcp snooping database write-delay 60")
+            '''
             accessInterfaces = self.getVulnerableAccessInterfaces(running_config)
             for interface in accessInterfaces:
                 telnet.execute("interface "+interface)
@@ -40,7 +41,9 @@ class DHCP_Spoofing:
                 telnet.execute("interface "+interface)
                 telnet.execute("ip dhcp snooping trust")
                 telnet.execute("exit")
+            '''
             telnet.execute("end")
+        '''
         else:
             accessInterfaces = self.getVulnerableAccessInterfaces(running_config)
             trunkInterfaces = self.getVulnerableTrunkInterfaces(running_config)
@@ -66,11 +69,31 @@ class DHCP_Spoofing:
                     telnet.execute("ip dhcp snooping trust")
                     telnet.execute("exit")
                 telnet.execute("end")
+        '''
 
 
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
+    def checkInterfaceByTelnet(self,telnet,interface_config,type):
+        if type == 'H':
+            if re.search("ip dhcp snooping limit rate",interface_config,re.MULTILINE)==None:
+                print("the interface is vulnerable to dhcp spoofing attack")
+                telnet.execute("conf t")
+                telnet.execute("interface "+interface_config.split('\n')[0].strip())
+                telnet.execute("ip dhcp snooping limit rate 10")
+                telnet.execute("end")
+            else:
+                print("the interface is not vulnerable to dhcp spoofing attack")
+        elif type == 'AD':
+            if re.search("ip dhcp snooping trust\n",interface_config,re.MULTILINE)==None:
+                print("the interface is not configured properly to mitigate dhcp spoofing")
+                telnet.execute("conf t")
+                telnet.execute("interface "+interface_config.split('\n')[0].strip())
+                telnet.execute("ip dhcp snooping trust")
+                telnet.execute("end")
+            else:
+                print("the interface is configured properly")
 
-    def checkBySSH(self,ssh):
+    def checkDeviceBySSH(self,ssh):
         #output = ssh.exec("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #output = open(self.configDirectory+"/"+self.host+"_stp_bpdu_config").read().strip()
         #accessInterfaces = self.getAccessInterfaces(output)
@@ -105,13 +128,29 @@ class DHCP_Spoofing:
 
 
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
-
-    def check(self,accessMethod):
+    def checkInterfaceBySSH(self,ssh,interface_config,type):
+        if type == 'H':
+            if re.search("ip dhcp snooping limit rate",interface_config,re.MULTILINE)==None:
+                print("the interface is vulnerable to dhcp spoofing attack")
+                ssh.conf(["interface "+interface_config.split('\n')[0].strip(),"ip dhcp snooping limit rate 10","exit"])
+            else:
+                print("the interface is not vulnerable to dhcp spoofing attack")
+        elif type == 'AD':
+            if re.search("ip dhcp snooping trust\n",interface_config,re.MULTILINE)==None:
+                print("the interface is not configured properly to mitigate dhcp spoofing")
+                ssh.conf(["interface "+interface_config.split('\n')[0].strip(),"ip dhcp snooping trust","exit"])
+            else:
+                print("the interface is configured properly")
+    def checkDevice(self,accessMethod):
         if isinstance(accessMethod,Telnet):
-            self.checkByTelnet(accessMethod)
+            self.checkDeviceByTelnet(accessMethod)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkBySSH(accessMethod)
-
+            self.checkDeviceBySSH(accessMethod)
+    def checkInterface(self,accessMethod,interface_config,type):
+        if isinstance(accessMethod,Telnet):
+            self.checkInterfaceByTelnet(accessMethod,interface_config,type)
+        elif isinstance(accessMethod,SshVersionII):
+            self.checkInterfaceBySSH(accessMethod,interface_config,type)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []

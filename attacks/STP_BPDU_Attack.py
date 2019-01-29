@@ -32,6 +32,23 @@ class STP_BPDU:
             telnet.execute("end")
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
 
+    def checkInterfaceByTelnet(self,telnet,interface_config):
+        if re.search("spanning-tree bpduguard enable\n",interface_config,re.MULTILINE)==None:
+            print("the interface is vulnerable to STP BPDU Attack")
+            telnet.execute("conf t")
+            telnet.execute("interface "+interface_config.split('\n')[0].strip())
+            telnet.execute("spanning-tree portfast")
+            telnet.execute("spanning-tree bpduguard enable")
+            telnet.execute("end")
+        elif re.search("spanning-tree portfast\n",interface_config,re.MULTILINE)==None:
+            print("the interface is not configured properly ,Portfast missing")
+            telnet.execute("conf t")
+            telnet.execute("interface "+interface_config.split('\n')[0].strip())
+            telnet.execute("spanning-tree portfast")
+            telnet.execute("end")
+        else:
+            print("the interface is not vulnerable to STP BPDU Attack")
+
     def checkBySSH(self,ssh):
         #output = ssh.exec("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #output = open(self.configDirectory+"/"+self.host+"_stp_bpdu_config").read().strip()
@@ -53,6 +70,11 @@ class STP_BPDU:
         elif isinstance(accessMethod,SshVersionII):
             self.checkBySSH(accessMethod)
 
+    def checkInterface(self,accessMethod,interface_config):
+        if isinstance(accessMethod,Telnet):
+            self.checkInterfaceByTelnet(accessMethod,interface_config)
+        elif isinstance(accessMethod,SshVersionII):
+            self.checkInterfaceBySSH(accessMethod,interface_config)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []

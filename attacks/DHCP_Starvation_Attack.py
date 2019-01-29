@@ -69,6 +69,33 @@ class DHCP_Starvation:
                 telnet.execute("end")
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
 
+
+    def checkInterfaceByTelnet(self,telnet,interface_config):
+        if re.search("switchport port-security\n",interface_config,re.MULTILINE)==None:
+                    print("the interface is vulnerable to dhcp starvation attack")
+                    telnet.execute("conf t")
+                    telnet.execute("interface "+interface_config.split('\n')[0].strip())
+                    telnet.execute("switchport port-security")
+                    if re.search("switchport voice vlan",interface_config,re.MULTILINE):
+                        telnet.execute("switchport port-security maximum 3")
+                        telnet.execute("switchport port-security maximum 2 vlan access")
+                        telnet.execute("switchport port-security maximum 1 vlan voice")
+                    else:
+                        telnet.execute("switchport port-security maximum 1")
+                    telnet.execute("switchport port-security violation shutdown vlan")
+                    telnet.execute("switchport port-security aging type inactivity")
+                    telnet.execute("switchport port-security aging time 2")
+                    telnet.execute("end")
+        elif re.search("switchport port-security violation shutdown vlan",interface_config,re.MULTILINE)==None or re.search("switchport port-security aging type inactivity",interface_config,re.MULTILINE)==None or re.search("switchport port-security aging time",interface_config,re.MULTILINE)==None:
+            print("the interface is not configured properly")
+            telnet.execute("conf t")
+            telnet.execute("interface "+interface_config.split('\n')[0].strip())
+            telnet.execute("switchport port-security violation shutdown vlan")
+            telnet.execute("switchport port-security aging type inactivity")
+            telnet.execute("switchport port-security aging time 2")
+            telnet.execute("end")
+        else:
+            print("the interface is configured properly")
     def checkBySSH(self,ssh):
         #output = ssh.exec("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #output = open(self.configDirectory+"/"+self.host+"_stp_bpdu_config").read().strip()
@@ -96,11 +123,16 @@ class DHCP_Starvation:
 
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
 
-    def check(self,accessMethod):
+    def checkDevice(self,accessMethod):
         if isinstance(accessMethod,Telnet):
-            self.checkByTelnet(accessMethod)
+            self.checkDeviceByTelnet(accessMethod)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkBySSH(accessMethod)
+            self.checkDeviceBySSH(accessMethod)
+    def checkInterface(self,accessMethod,interface_config):
+        if isinstance(accessMethod,Telnet):
+            self.checkInterfaceByTelnet(accessMethod,interface_config)
+        elif isinstance(accessMethod,SshVersionII):
+            self.checkInterfaceBySSH(accessMethod,interface_config)
 
     '''
     def getAccessInterfaces(self,show):

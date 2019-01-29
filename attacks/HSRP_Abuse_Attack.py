@@ -32,6 +32,21 @@ class HSRP_Abuse:
             telnet.execute("end")
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
 
+    def checkInterfaceByTelnet(self,telnet,interface_config):
+        if re.search("standby",interface_config,re.MULTILINE):
+            output = re.findall("standby ([0-9]+)",interface_config,re.MULTILINE)
+            if re.search("standby "+output[0]+" authentication md5 ",interface_config,re.MULTILINE)==None:
+                print("the interface is vulnerable to hsrp abuse attack")
+                telnet.execute("conf t")
+                telnet.execute("interface "+interface_config.split('\n')[0].strip())
+                telnet.execute("standby "+output[0]+" authentication md5 key-string cisco")
+                telnet.execute("end")
+            else:
+                print("the interface is not vulnerable to hsrp abuse attack")
+        else:
+            print("HSRP is not enabled on this interface")
+
+
     def checkBySSH(self,ssh):
         #output = ssh.exec("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #output = open(self.configDirectory+"/"+self.host+"_stp_bpdu_config").read().strip()
@@ -53,6 +68,11 @@ class HSRP_Abuse:
         elif isinstance(accessMethod,SshVersionII):
             self.checkBySSH(accessMethod)
 
+    def checkInterface(self,accessMethod,interface_config):
+        if isinstance(accessMethod,Telnet):
+            self.checkInterfaceByTelnet(accessMethod,interface_config)
+        elif isinstance(accessMethod,SshVersionII):
+            self.checkInterfaceBySSH(accessMethod,interface_config)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []

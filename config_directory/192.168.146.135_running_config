@@ -1,0 +1,154 @@
+Building configuration...
+
+Current configuration : 2117 bytes
+!
+! Last configuration change at 19:07:01 UTC Tue Jan 29 2019 by abdou
+!
+version 15.2
+service timestamps debug datetime msec
+service timestamps log datetime msec
+!
+hostname R3
+!
+boot-start-marker
+boot-end-marker
+!
+!
+enable password cisco
+!
+no aaa new-model
+no ip icmp rate-limit unreachable
+ip cef
+!
+!
+!
+!
+ip dhcp pool test
+ network 30.30.30.0 255.255.255.0
+ default-router 30.30.30.1 
+ dns-server 8.8.8.8 
+!
+!
+!
+no ip domain lookup
+ip domain name router
+no ipv6 cef
+!
+!
+multilink bundle-name authenticated
+!
+key chain authentication_chain
+ key 1
+   key-string cisco
+!
+!
+!
+!
+!
+!
+!
+username abdou password 0 cisco
+!
+!
+ip tcp synwait-time 5
+ip ssh version 2
+! 
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+!
+interface FastEthernet0/0
+ ip address dhcp
+ ip ospf authentication message-digest
+ duplex half
+!
+interface FastEthernet1/0
+ ip address 10.10.10.1 255.255.255.0
+ ip access-group filter_dns in
+ ip ospf authentication message-digest
+ speed auto
+ duplex auto
+!
+interface FastEthernet1/1
+ ip address 20.20.20.1 255.255.255.0
+ speed auto
+ duplex auto
+!
+interface FastEthernet2/0
+ ip address 30.30.30.1 255.255.255.0
+ speed auto
+ duplex auto
+!
+interface FastEthernet2/1
+ no ip address
+ shutdown
+ speed auto
+ duplex auto
+!
+!
+router eigrp 200
+!
+!
+router eigrp 100
+ network 10.10.10.1 0.0.0.0
+ network 20.20.20.1 0.0.0.0
+ network 192.168.146.135 0.0.0.0
+!
+router ospf 100
+ router-id 1.1.1.1
+ passive-interface FastEthernet0/0
+ network 0.0.0.0 255.255.255.255 area 0
+!
+router rip
+ version 2
+ network 10.0.0.0
+ network 20.0.0.0
+ network 192.168.146.0
+!
+ip forward-protocol nd
+!
+!
+no ip http server
+no ip http secure-server
+!
+ip access-list extended deny_ospf
+ deny   ospf any any
+ permit ip any any
+ip access-list extended filter_dns
+ permit udp any host 1.1.1.1 eq domain
+ permit tcp any host 1.1.1.1 eq domain
+ deny   udp any any eq domain
+ deny   tcp any any eq domain
+ permit ip any any
+!
+no cdp run
+!
+!
+!
+control-plane
+!
+!
+line con 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+ stopbits 1
+line aux 0
+ exec-timeout 0 0
+ privilege level 15
+ logging synchronous
+ stopbits 1
+line vty 0 4
+ login local
+ transport input all
+!
+!
+end
+
