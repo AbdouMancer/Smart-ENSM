@@ -9,40 +9,20 @@ class DHCP_Spoofing:
         self.server_ip = server_ip
         self.host = host
         self.configDirectory = configDirectory
+        self.vlanList = ''
 
 
-    def checkDeviceByTelnet(self,telnet):
+
+    def checkDeviceByTelnet(self,telnet,running_config):
         #telnet.execute("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #telnet.readUntil(b"!")
         #telnet.readUntil(b"#")
         #output = open(self.configDirectory+"/"+self.host+"_stp_bpdu_config").read().strip()
         #accessInterfaces = self.getAccessInterfaces(output)
-        running_config = open(self.configDirectory+"/"+self.host+"_running_config").read().strip()
-        vlans = self.getVlans(running_config)
-        vulnerability = self.checkVulnerability(running_config,vlans)
-        if (vulnerability==True):
-            print("device "+self.host+" is vulnerable to  DHCP Spoofing attack")
-            ##solution
-            telnet.execute("conf t")
-            telnet.execute("ip dhcp snooping")
-            if vlans != "":
-                telnet.execute("ip dhcp snooping vlan "+vlans)
-            telnet.execute("no ip dhcp snooping information option")
-            telnet.execute("ip dhcp snooping database flash:dhcp-snooping-database.txt")
-            telnet.execute("ip dhcp snooping database write-delay 60")
-            '''
-            accessInterfaces = self.getVulnerableAccessInterfaces(running_config)
-            for interface in accessInterfaces:
-                telnet.execute("interface "+interface)
-                telnet.execute("ip dhcp snooping limit rate 10")
-                telnet.execute("exit")
-            trunkInterfaces = self.getVulnerableTrunkInterfaces(running_config)
-            for interface in trunkInterfaces:
-                telnet.execute("interface "+interface)
-                telnet.execute("ip dhcp snooping trust")
-                telnet.execute("exit")
-            '''
-            telnet.execute("end")
+
+        return self.checkVulnerability(running_config)
+
+
         '''
         else:
             accessInterfaces = self.getVulnerableAccessInterfaces(running_config)
@@ -76,29 +56,23 @@ class DHCP_Spoofing:
     def checkInterfaceByTelnet(self,telnet,interface_config,type):
         if type == 'H':
             if re.search("ip dhcp snooping limit rate",interface_config,re.MULTILINE)==None:
-                print("the interface is vulnerable to dhcp spoofing attack")
-                telnet.execute("conf t")
-                telnet.execute("interface "+interface_config.split('\n')[0].strip())
-                telnet.execute("ip dhcp snooping limit rate 10")
-                telnet.execute("end")
+                return False
             else:
-                print("the interface is not vulnerable to dhcp spoofing attack")
+                return True
+
         elif type == 'AD':
             if re.search("ip dhcp snooping trust\n",interface_config,re.MULTILINE)==None:
-                print("the interface is not configured properly to mitigate dhcp spoofing")
-                telnet.execute("conf t")
-                telnet.execute("interface "+interface_config.split('\n')[0].strip())
-                telnet.execute("ip dhcp snooping trust")
-                telnet.execute("end")
+                return False
             else:
-                print("the interface is configured properly")
+                return True
 
-    def checkDeviceBySSH(self,ssh):
+    def checkDeviceBySSH(self,ssh,interfaces):
         #output = ssh.exec("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #output = open(self.configDirectory+"/"+self.host+"_stp_bpdu_config").read().strip()
         #accessInterfaces = self.getAccessInterfaces(output)
         running_config = open(self.configDirectory+"/"+self.host+"_running_config").read().strip()
         vlans = self.getVlans(running_config)
+        missedVlans = self.getMissedVlans(vlans,interfaces)
         vulnerability = self.checkVulnerability(running_config,vlans)
         if (vulnerability==True):
             print("device "+self.host+" is vulnerable to  DHCP Spoofing attack")
@@ -141,16 +115,61 @@ class DHCP_Spoofing:
                 ssh.conf(["interface "+interface_config.split('\n')[0].strip(),"ip dhcp snooping trust","exit"])
             else:
                 print("the interface is configured properly")
-    def checkDevice(self,accessMethod):
+    def checkDevice(self,accessMethod,running_config):
         if isinstance(accessMethod,Telnet):
-            self.checkDeviceByTelnet(accessMethod)
+            return self.checkDeviceByTelnet(accessMethod,running_config)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkDeviceBySSH(accessMethod)
+            return self.checkDeviceBySSH(accessMethod,running_config)
+
+
     def checkInterface(self,accessMethod,interface_config,type):
         if isinstance(accessMethod,Telnet):
-            self.checkInterfaceByTelnet(accessMethod,interface_config,type)
+            return self.checkInterfaceByTelnet(accessMethod,interface_config,type)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkInterfaceBySSH(accessMethod,interface_config,type)
+            return self.checkInterfaceBySSH(accessMethod,interface_config,type)
+
+
+    def solveByTelnet(self,telnet,command):
+        telnet.execute("conf t")
+        if command=='activate':
+            telnet.execute("ip dhcp snooping")
+        elif command == 'ip dhcp snooping vlan':
+            telnet.execute("no ip dhcp snooping vlan")
+            telnet.execute("ip dhcp snooping vlan "+self.vlanList)
+        elif command == "no ip dhcp snooping information option":
+            telnet.execute("no ip dhcp snooping information option")
+        elif command == "ip dhcp snooping database flash":
+            telnet.execute("ip dhcp snooping database flash:dhcp-snooping-database.txt")
+        elif command == "ip dhcp snooping database write-delay":
+            telnet.execute("ip dhcp snooping database write-delay 60")
+
+        telnet.execute("end")
+
+
+    def solveBySSH(self,ssh,command):
+        print()
+
+    def solve(self,accessMethod,command):
+        if isinstance(accessMethod,Telnet):
+            self.solveByTelnet(accessMethod,command)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveBySSH(accessMethod,command)
+
+    def solveInterfaceByTelnet(self,telnet,interface,command):
+        telnet.execute("conf t")
+        telnet.execute("interface "+interface.split('\n')[0].strip())
+        telnet.execute(command)
+        telnet.execute("end")
+
+
+    def solveInterfaceBySSH(self,ssh,interface,command):
+        print()
+
+    def solveInterface(self,accessMethod,interface,command):
+        if isinstance(accessMethod,Telnet):
+            self.solveInterfaceByTelnet(accessMethod,interface,command)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveInterfaceBySSH(accessMethod,interface,command)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []
@@ -165,17 +184,43 @@ class DHCP_Spoofing:
         return accessInterfaces
     '''
 
-    def checkVulnerability(self,running_config,vlans):
-        if re.search("ip dhcp snooping\n",running_config,re.MULTILINE)==None or re.search("ip dhcp snooping vlan "+vlans,running_config,re.MULTILINE)==None:
+    def checkVulnerability(self,running_config):
+        if re.search("ip dhcp snooping\n",running_config,re.MULTILINE)==None:
+            print("command missed : ip dhcp snooping")
             return True
         else:
             return False
 
-    def commandsMissed(self,running_config,vlans):
-        if re.search("ip dhcp snooping vlan "+vlans,running_config,re.MULTILINE)==None or re.search("no ip dhcp snooping information option",running_config,re.MULTILINE)==None or re.search("ip dhcp snooping database",running_config,re.MULTILINE)==None:
-            return True
+    def commandsMissed(self,running_config,vlanList):
+        self.vlanList = vlanList
+        vlanListItems = self.vlanList.split(',')
+        commandsMissed = []
+        if re.search("ip dhcp snooping vlan ",running_config,re.MULTILINE)==None:
+            commandsMissed.append("ip dhcp snooping vlan")
         else:
-            return False
+            items = re.findall("ip dhcp snooping vlan ((?:[0-9]|,|-)+)",running_config)[0]
+            VLANs = []
+            for vlan in items.split(","):
+                if "-" not in vlan:
+                    VLANs.append(vlan)
+                else:
+                    limits = vlan.split("-")
+                    for i in range(int(limits[0]),int(limits[1])+1):
+                        VLANs.append(str(i))
+
+            for vlan in vlanListItems:
+                if vlan not in VLANs:
+                    commandsMissed.append("ip dhcp snooping vlan")
+                    break
+
+        if re.search("no ip dhcp snooping information option",running_config,re.MULTILINE)==None:
+            commandsMissed.append("no ip dhcp snooping information option")
+        if re.search("ip dhcp snooping database flash:",running_config,re.MULTILINE)==None:
+            commandsMissed.append("ip dhcp snooping database flash")
+        if re.search("ip dhcp snooping database write-delay ",running_config,re.MULTILINE)==None:
+            commandsMissed.append("ip dhcp snooping database write-delay")
+
+        return commandsMissed
 
     def getVulnerableAccessInterfaces(self,running_config):
         accessInterfaces = []
@@ -195,9 +240,4 @@ class DHCP_Spoofing:
                     trunkInterfaces.append(interface.split('\n')[0].strip())
         return trunkInterfaces
 
-    def getVlans(self,running_config):
-        vlans = re.findall("\nvlan ((?:[0-9]|,|-)+)",running_config)
-        vlanList = "1"
-        for x in range(len(vlans)):
-            vlanList = vlanList+","+vlans[x]
-        return vlanList
+

@@ -1,7 +1,8 @@
 import telnetlib
 import time
 class Telnet:
-    tn = telnetlib.Telnet()
+    def __init__(self):
+        tn = None
     def connect(self,host,port,user,password,enablePassword):
         self.tn = telnetlib.Telnet(host,port)
         self.tn.read_until(b"Username: ")

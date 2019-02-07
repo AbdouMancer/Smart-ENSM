@@ -10,6 +10,8 @@ class Characteristics:
         self.host = host
         self.configDirectory = configDirectory
         self.accessMode = accessMode
+        self.vlans = []
+        self.missedVlans = []
 
     def getRunningConfig(self):
         self.execute("show running | redirect tftp://"+self.server_ip+"/"+self.host+"_running_config")
@@ -39,5 +41,33 @@ class Characteristics:
         elif isinstance(self.accessMode,SshVersionII):
             self.accessMode.exec(cmd)
 
+    def getVlans(self,running_config):
+        vlans = re.findall("\nvlan ((?:[0-9]|,|-)+)",running_config)
+        vlanList = "1"
+        for x in range(len(vlans)):
+            vlanList = vlanList+","+vlans[x]
+        self.vlans = []
+        for vlan in vlanList.split(","):
+            if "-" not in vlan:
+                self.vlans.append(vlan)
+            else:
+                limits = vlan.split("-")
+                for i in range(int(limits[0]),int(limits[1])+1):
+                    self.vlans.append(str(i))
+
+    def getMissedVlans(self,interfaces):
+        self.missedVlans = []
+        for interface in interfaces:
+            if re.search("switchport access vlan ",interface,re.MULTILINE):
+                vlan = re.findall("switchport access vlan ([0-9]+)",interface)[0]
+                if vlan not in self.vlans:
+                    self.missedVlans.append(vlan)
+    def getVlansList(self):
+        vlanList = ''
+        for vlan in self.vlans:
+            vlanList = vlan + ',' + vlanList
+        for vlan in self.missedVlans:
+            vlanList = vlan + ',' + vlanList
+        return vlanList[0:len(vlanList)-1]
     def remove(self):
         os.remove(self.configDirectory+"/"+self.host+"_running_config")

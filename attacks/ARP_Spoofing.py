@@ -9,17 +9,17 @@ class ARP_Spoofing:
         self.server_ip = server_ip
         self.host = host
         self.configDirectory = configDirectory
+        self.vlanList = ''
 
 
-    def checkDeviceByTelnet(self,telnet):
+    def checkDeviceByTelnet(self,telnet,running_config,vlanList):
         #telnet.execute("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
         #telnet.readUntil(b"!")
         #telnet.readUntil(b"#")
         #output = open(self.configDirectory+"/"+self.host+"_stp_bpdu_config").read().strip()
         #accessInterfaces = self.getAccessInterfaces(output)
-        running_config = open(self.configDirectory+"/"+self.host+"_running_config").read().strip()
-        vlans = self.getVlans(running_config)
-        vulnerability = self.checkVulnerability(running_config,vlans)
+        self.vlanList = vlanList
+        return self.commandsMissed(running_config)
         if (vulnerability==True):
             print("device "+self.host+" is vulnerable to  ARP Spoofing attack")
             ##solution
@@ -103,32 +103,62 @@ class ARP_Spoofing:
     def checkInterfaceByTelnet(self,telnet,interface_config,type):
         if type == 'H':
             if re.search("ip arp inspection limit rate",interface_config,re.MULTILINE)==None:
-                print("the interface is vulnerable to arp spoofing attack")
-                telnet.execute("conf t")
-                telnet.execute("interface "+interface_config.split('\n')[0].strip())
-                telnet.execute("ip arp inspection limit rate 10")
-                telnet.execute("end")
+                return False
             else:
-                print("the interface is not vulnerable to arp spoofing attack")
+                return True
         elif type == 'AD':
             if re.search("ip arp inspection trust\n",interface_config,re.MULTILINE)==None:
-                print("the interface is not configured properly to mitigate arp spoofing")
-                telnet.execute("conf t")
-                telnet.execute("interface "+interface_config.split('\n')[0].strip())
-                telnet.execute("ip arp inspection trust")
-                telnet.execute("end")
+                return False
             else:
-                print("the interface is configured properly")
-    def checkDevice(self,accessMethod):
+                return True
+
+    def checkDevice(self,accessMethod,running_config,vlanList):
         if isinstance(accessMethod,Telnet):
-            self.checkDeviceByTelnet(accessMethod)
+            return self.checkDeviceByTelnet(accessMethod,running_config,vlanList)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkDeviceBySSH(accessMethod)
+            return self.checkDeviceBySSH(accessMethod,running_config,vlanList)
+
     def checkInterface(self,accessMethod,interface_config,type):
         if isinstance(accessMethod,Telnet):
-            self.checkInterfaceByTelnet(accessMethod,interface_config,type)
+            return self.checkInterfaceByTelnet(accessMethod,interface_config,type)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkInterfaceBySSH(accessMethod,interface_config,type)
+            return self.checkInterfaceBySSH(accessMethod,interface_config,type)
+
+    def solveByTelnet(self,telnet,command):
+        telnet.execute("conf t")
+        if command == 'ip arp inspection vlan':
+            telnet.execute("no ip arp inspection vlan")
+            telnet.execute("ip arp inspection vlan "+self.vlanList)
+        elif command == "ip arp inspection validate":
+            telnet.execute("ip arp inspection validate dst-mac ip")
+
+        telnet.execute("end")
+
+
+    def solveBySSH(self,ssh,command):
+        print()
+
+    def solve(self,accessMethod,command):
+        if isinstance(accessMethod,Telnet):
+            self.solveByTelnet(accessMethod,command)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveBySSH(accessMethod,command)
+
+    def solveInterfaceByTelnet(self,telnet,interface,command):
+        telnet.execute("conf t")
+        telnet.execute("interface "+interface.split('\n')[0].strip())
+        telnet.execute(command)
+        telnet.execute("end")
+
+
+    def solveInterfaceBySSH(self,ssh,interface,command):
+        print()
+
+    def solveInterface(self,accessMethod,interface,command):
+        if isinstance(accessMethod,Telnet):
+            self.solveInterfaceByTelnet(accessMethod,interface,command)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveInterfaceBySSH(accessMethod,interface,command)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []
@@ -143,18 +173,33 @@ class ARP_Spoofing:
         return accessInterfaces
     '''
 
-    def checkVulnerability(self,running_config,vlans):
 
-        if re.search("ip arp inspection vlan "+vlans,running_config,re.MULTILINE)==None:
-            return True
-        else:
-            return False
 
-    def commandsMissed(self,running_config,vlans):
-        if re.search("ip arp inspection vlan "+vlans,running_config,re.MULTILINE)==None or re.search("ip arp inspection validate ",running_config,re.MULTILINE)==None:
-            return True
+    def commandsMissed(self,running_config):
+        vlanListItems = self.vlanList.split(',')
+        commandsMissed = []
+        if re.search("ip arp inspection vlan ",running_config,re.MULTILINE)==None:
+            commandsMissed.append("ip arp inspection vlan")
         else:
-            return False
+            items = re.findall("ip arp inspection vlan ((?:[0-9]|,|-)+)",running_config)[0]
+            VLANs = []
+            for vlan in items.split(","):
+                if "-" not in vlan:
+                    VLANs.append(vlan)
+                else:
+                    limits = vlan.split("-")
+                    for i in range(int(limits[0]),int(limits[1])+1):
+                        VLANs.append(str(i))
+
+            for vlan in vlanListItems:
+                if vlan not in VLANs:
+                    commandsMissed.append("ip arp inspection vlan")
+                    break
+
+        if re.search("ip arp inspection validate ",running_config,re.MULTILINE)==None:
+            commandsMissed.append("ip arp inspection validate")
+
+        return commandsMissed
 
     def getVulnerableAccessInterfaces(self,running_config):
         accessInterfaces = []

@@ -33,21 +33,12 @@ class STP_BPDU:
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
 
     def checkInterfaceByTelnet(self,telnet,interface_config):
+        missedCommands = []
         if re.search("spanning-tree bpduguard enable\n",interface_config,re.MULTILINE)==None:
-            print("the interface is vulnerable to STP BPDU Attack")
-            telnet.execute("conf t")
-            telnet.execute("interface "+interface_config.split('\n')[0].strip())
-            telnet.execute("spanning-tree portfast")
-            telnet.execute("spanning-tree bpduguard enable")
-            telnet.execute("end")
-        elif re.search("spanning-tree portfast\n",interface_config,re.MULTILINE)==None:
-            print("the interface is not configured properly ,Portfast missing")
-            telnet.execute("conf t")
-            telnet.execute("interface "+interface_config.split('\n')[0].strip())
-            telnet.execute("spanning-tree portfast")
-            telnet.execute("end")
-        else:
-            print("the interface is not vulnerable to STP BPDU Attack")
+            missedCommands.append("spanning-tree bpduguard enable")
+        if re.search("spanning-tree portfast\n",interface_config,re.MULTILINE)==None:
+            missedCommands.append("spanning-tree portfast")
+        return missedCommands
 
     def checkBySSH(self,ssh):
         #output = ssh.exec("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
@@ -72,9 +63,25 @@ class STP_BPDU:
 
     def checkInterface(self,accessMethod,interface_config):
         if isinstance(accessMethod,Telnet):
-            self.checkInterfaceByTelnet(accessMethod,interface_config)
+            return self.checkInterfaceByTelnet(accessMethod,interface_config)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkInterfaceBySSH(accessMethod,interface_config)
+            return self.checkInterfaceBySSH(accessMethod,interface_config)
+
+    def solveInterfaceByTelnet(self,telnet,interface,command):
+        telnet.execute("conf t")
+        telnet.execute("interface "+interface.split('\n')[0].strip())
+        telnet.execute(command)
+        telnet.execute("end")
+
+
+    def solveInterfaceBySSH(self,ssh,interface,command):
+        print()
+
+    def solveInterface(self,accessMethod,interface,command):
+        if isinstance(accessMethod,Telnet):
+            self.solveInterfaceByTelnet(accessMethod,interface,command)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveInterfaceBySSH(accessMethod,interface,command)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []

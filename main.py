@@ -34,7 +34,8 @@ top.mainloop()
 # Give the location of the file 
 loc = ("devices.xlsx")
 configDirectory = 'config_directory'
-server_ip = '192.168.146.1'
+#server_ip = '10.10.10.2'
+server_ip = "192.168.146.1"
 tftp_port = 69
 # To open Workbook
 wb = xlrd.open_workbook(loc) 
@@ -75,46 +76,191 @@ for row in range(1,sheet.nrows):
         characteristics = Characteristics(server_ip,host,configDirectory,telnet)
         characteristics.getRunningConfig()
         running_config = open(configDirectory+"/"+host+"_running_config").read().strip()
+        interfaces = characteristics.getInterfaces(running_config)
         print("Devices tags : Access , Distribution , Edge")
         deviceTag = input("choose "+host+"'s tag:")
-        cdp.check(telnet)
-        #lldp.check(telnet)
+
+        cdpVulnerability = cdp.check(telnet)
+        if (cdpVulnerability == True):
+            answer = input("Would you like to resolve the problem ?")
+            if answer == 'yes':
+                cdp.solve(telnet)
+
+        lldpVulnerability = lldp.check(telnet)
+        if (lldpVulnerability == True):
+            answer = input("Would you like to resolve the problem ?")
+            if answer == 'yes':
+                lldp.solve(telnet)
+
         if deviceTag == 'Access':
-            dhcp_spoofing.checkDevice(telnet)
-            arp_spoofing.checkDevice(telnet)
-            vtp.check(telnet)
+            characteristics.getVlans(running_config)
+            characteristics.getMissedVlans(interfaces)
+            if len(characteristics.missedVlans)>0:
+                list = characteristics.missedVlans[0]
+                for vlan in characteristics.missedVlans[1:]:
+                    list = list + ',' + vlan
+                answer = input("The following VLANs "+list+" are assigned by some port but not created would you like to create them?")
+                if answer=='yes':
+                    telnet.execute("conf t")
+                    telnet.execute("vlan "+list)
+                    telnet.execute("end")
+            vlanList = characteristics.getVlansList()
+
+
+            dhcp_spoofingVulnerability = dhcp_spoofing.checkDevice(telnet,running_config)
+            if(dhcp_spoofingVulnerability == True):
+                answer = input("Would you like to resolve the problem ?")
+                if answer == 'yes':
+                    dhcp_spoofing.solve(telnet,"activate")
+                    missedCommands = dhcp_spoofing.commandsMissed(running_config,vlanList)
+                    for command in missedCommands:
+                        print("command missed : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            dhcp_spoofing.solve(telnet,command)
+            else:
+                missedCommands = dhcp_spoofing.commandsMissed(running_config,vlanList)
+                for command in missedCommands:
+                    print("command missed : "+command)
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        dhcp_spoofing.solve(telnet,command)
+
+
+            missedCommands = arp_spoofing.checkDevice(telnet,running_config,vlanList)
+            for command in missedCommands:
+                    print("command missed : "+command)
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        arp_spoofing.solve(telnet,command)
+
+
+            missedCommands = vtp.check(telnet,running_config)
+            for command in missedCommands:
+                    print("command missed : "+command)
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        vtp.solve(telnet,command)
+
         elif deviceTag == 'Distribution':
+            characteristics.getVlans(running_config)
+            characteristics.getMissedVlans(interfaces)
+            if len(characteristics.missedVlans)>0:
+                list = characteristics.missedVlans[0]
+                for vlan in characteristics.missedVlans[1:]:
+                    list = list + ',' + vlan
+                answer = input("The following VLANs "+list+" are assigned by some port but not created would you like to create them?")
+                if answer=='yes':
+                    telnet.execute("conf t")
+                    telnet.execute("vlan "+list)
+                    telnet.execute("end")
+
+            missedCommands = vtp.check(telnet,running_config)
+            for command in missedCommands:
+                    print("command missed : "+command)
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        vtp.solve(telnet,command)
+
             routing_protocol = input("which routing protocol is used ?")
             if routing_protocol == 'ospf':
                 ospf.check(telnet)
             elif routing_protocol == 'eigrp':
                 eigrp.check(telnet)
-            vtp.check(telnet)
+
+
         elif deviceTag == 'Edge':
             routing_protocol = input("which routing protocol is used ?")
             if routing_protocol == 'ospf':
                 ospf.check(telnet)
             elif routing_protocol == 'eigrp':
                 eigrp.check(telnet)
-        interfaces = characteristics.getInterfaces(running_config)
+
+
+
+
         for interface in interfaces:
             print("interfaces tags : H , O , AD , DA , DD , DE , ED , S , DNS , SVI , lo")
             tag = input("choose "+interface.split('\n')[0].strip()+"'s tag:")
             if tag == 'H':
-                print('host')
-                dhcp_spoofing.checkInterface(telnet,interface,tag)
-                arp_spoofing.checkInterface(telnet,interface,tag)
-                dhcp_starvation.checkInterface(telnet,interface)
-                dns.checkInterface(telnet,server_ip,host,configDirectory,interface,running_config)
-                ip_spoofing.checkInterface(telnet,interface)
-                stp_bpdu.checkInterface(telnet,interface)
+                exists = dhcp_spoofing.checkInterface(telnet,interface,tag)
+                if exists == False:
+                    print("command missed : ip dhcp snooping limit rate")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        dhcp_spoofing.solveInterface(telnet,interface,"ip dhcp snooping limit rate 10")
+
+                exists = arp_spoofing.checkInterface(telnet,interface,tag)
+                if exists == False:
+                    print("command missed : ip arp inspection limit rate")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        arp_spoofing.solveInterface(telnet,interface,"ip arp inspection limit rate 10")
+
+                dhcp_starvationVulnerability = dhcp_starvation.checkInterface(telnet,interface)
+                if(dhcp_starvationVulnerability == True):
+                    print("command missed : switchport port-security")
+                    answer = input("Would you like to resolve the problem ?")
+                    if answer == 'yes':
+                        dhcp_starvation.solveInterface(telnet,interface,"switchport port-security")
+                        missedCommands = dhcp_starvation.missedCommands(interface)
+                        for command in missedCommands:
+                            print("command missed : "+command)
+                            response = input("Would you like to resolve the problem ?")
+                            if response == 'yes':
+                                dhcp_starvation.solveInterface(telnet,interface,command)
+                else:
+                    missedCommands = dhcp_starvation.missedCommands(interface)
+                    for command in missedCommands:
+                        print("command missed : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            dhcp_starvation.solveInterface(telnet,interface,command)
+
+                exists = dns.checkInterface(telnet,server_ip,host,configDirectory,interface,running_config)
+                if exists == False:
+                    print("DNS ACL missed")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        dns.solveInterface(telnet,interface,running_config)
+
+                exists = ip_spoofing.checkInterface(telnet,interface)
+                if exists == False:
+                    print("command missed : ip verify source")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        ip_spoofing.solveInterface(telnet,interface)
+
+                missedCommands = stp_bpdu.checkInterface(telnet,interface)
+                for command in missedCommands:
+                        print("command missed : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            stp_bpdu.solveInterface(telnet,interface,command)
+
             elif tag == 'O':
-                print('Outside')
-                dns.checkInterface(telnet,server_ip,host,configDirectory,interface,running_config)
+                exists = dns.checkInterface(telnet,server_ip,host,configDirectory,interface,running_config)
+                if exists == False:
+                    print("DNS ACL missed")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        dns.solveInterface(telnet,interface,running_config)
+
             elif tag == 'AD':
-                print('Access-Distribution')
-                dhcp_spoofing.checkInterface(telnet,interface,tag)
-                arp_spoofing.checkInterface(telnet,interface,tag)
+                exists = dhcp_spoofing.checkInterface(telnet,interface,tag)
+                if exists == False:
+                    print("command missed : ip dhcp snooping trust")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        dhcp_spoofing.solveInterface(telnet,interface,"ip dhcp snooping trust")
+
+                exists = arp_spoofing.checkInterface(telnet,interface,tag)
+                if exists == False:
+                    print("command missed : ip arp inspection trust")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        arp_spoofing.solveInterface(telnet,interface,"ip arp inspection trust")
+
             elif tag == 'DA':
                 print('Distribution-Access')
                 stp_root.checkInterface(telnet,interface)
@@ -136,7 +282,15 @@ for row in range(1,sheet.nrows):
                     eigrp.checkOperatingInterface(telnet,interface)
                 elif routing_protocol == 'ospf':
                     ospf.checkOperatingInterface(telnet,interface)
-                hsrp.checkInterface(telnet,interface)
+
+
+                exists = hsrp.checkInterface(telnet,interface)
+                if exists == False:
+                    print("command missed : standby authentication md5")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        hsrp.solveInterface(telnet,interface)
+
             elif tag == 'S':
                 print('Server')
             elif tag == 'DNS':
@@ -147,7 +301,14 @@ for row in range(1,sheet.nrows):
                     eigrp.checkPassiveInterfaceByTelnet(telnet,interface,running_config)
                 elif routing_protocol == 'ospf':
                     ospf.checkPassiveInterfaceByTelnet(telnet,interface,running_config)
-                hsrp.checkInterface(telnet,interface)
+
+                exists = hsrp.checkInterface(telnet,interface)
+                if exists == False:
+                    print("command missed : standby authentication md5")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        hsrp.solveInterface(telnet,interface)
+
             elif tag == 'lo':
                 print('loopback interface')
                 if routing_protocol == 'eigrp':

@@ -36,15 +36,11 @@ class HSRP_Abuse:
         if re.search("standby",interface_config,re.MULTILINE):
             output = re.findall("standby ([0-9]+)",interface_config,re.MULTILINE)
             if re.search("standby "+output[0]+" authentication md5 ",interface_config,re.MULTILINE)==None:
-                print("the interface is vulnerable to hsrp abuse attack")
-                telnet.execute("conf t")
-                telnet.execute("interface "+interface_config.split('\n')[0].strip())
-                telnet.execute("standby "+output[0]+" authentication md5 key-string cisco")
-                telnet.execute("end")
+                return False
             else:
-                print("the interface is not vulnerable to hsrp abuse attack")
+                return True
         else:
-            print("HSRP is not enabled on this interface")
+            return True
 
 
     def checkBySSH(self,ssh):
@@ -70,9 +66,26 @@ class HSRP_Abuse:
 
     def checkInterface(self,accessMethod,interface_config):
         if isinstance(accessMethod,Telnet):
-            self.checkInterfaceByTelnet(accessMethod,interface_config)
+            return self.checkInterfaceByTelnet(accessMethod,interface_config)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkInterfaceBySSH(accessMethod,interface_config)
+            return self.checkInterfaceBySSH(accessMethod,interface_config)
+
+    def solveInterfaceByTelnet(self,telnet,interface):
+        output = re.findall("standby ([0-9]+)",interface,re.MULTILINE)
+        telnet.execute("conf t")
+        telnet.execute("interface "+interface.split('\n')[0].strip())
+        telnet.execute("standby "+output[0]+" authentication md5 key-string cisco")
+        telnet.execute("end")
+
+
+    def solveInterfaceBySSH(self,ssh,interface,command):
+        print()
+
+    def solveInterface(self,accessMethod,interface):
+        if isinstance(accessMethod,Telnet):
+            self.solveInterfaceByTelnet(accessMethod,interface)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveInterfaceBySSH(accessMethod,interface)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []

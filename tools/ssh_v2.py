@@ -1,7 +1,8 @@
 from netmiko import ConnectHandler
 
 class SshVersionII:
-    net_connect = ''
+    def __init__(self):
+        net_connect = None
     def connect(self,device_type,host,port,username,password,secret):
         self.net_connect = ConnectHandler(device_type=device_type, host=host,port=port, username=username, password=password,secret =secret)
 

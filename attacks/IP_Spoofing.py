@@ -35,13 +35,11 @@ class IP_Spoofing:
         #os.remove(self.configDirectory+"/"+self.host+"_stp_bpdu_config")
     def checkInterfaceByTelnet(self,telnet,interface_config):
         if re.search("ip verify source\n",interface_config,re.MULTILINE)==None:
-            print("the interface is vulnerable to IP Spoofing")
-            telnet.execute("conf t")
-            telnet.execute("interface "+interface_config.split('\n')[0].strip())
-            telnet.execute("ip verify source")
-            telnet.execute("end")
+            return False
+
         else:
-            print("the interface is not vulnerable to IP Spoofing")
+            return True
+
 
     def checkBySSH(self,ssh):
         #output = ssh.exec("show interfaces switchport | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_bpdu_config")
@@ -68,9 +66,25 @@ class IP_Spoofing:
 
     def checkInterface(self,accessMethod,interface_config):
         if isinstance(accessMethod,Telnet):
-            self.checkInterfaceByTelnet(accessMethod,interface_config)
+            return self.checkInterfaceByTelnet(accessMethod,interface_config)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkInterfaceBySSH(accessMethod,interface_config)
+            return self.checkInterfaceBySSH(accessMethod,interface_config)
+
+    def solveInterfaceByTelnet(self,telnet,interface):
+        telnet.execute("conf t")
+        telnet.execute("interface "+interface.split('\n')[0].strip())
+        telnet.execute("ip verify source")
+        telnet.execute("end")
+
+
+    def solveInterfaceBySSH(self,ssh,interface,command):
+        print()
+
+    def solveInterface(self,accessMethod,interface):
+        if isinstance(accessMethod,Telnet):
+            self.solveInterfaceByTelnet(accessMethod,interface)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveInterfaceBySSH(accessMethod,interface)
     '''
     def getAccessInterfaces(self,show):
         accessInterfaces = []
