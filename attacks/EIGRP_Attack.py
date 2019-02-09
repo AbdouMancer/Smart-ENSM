@@ -107,66 +107,38 @@ class EIGRP:
 
     def checkPassiveInterfaceByTelnet(self,telnet,interface_config,running_config):
         interface = interface_config.split('\n')[0].strip()
+        missedCommands = []
+        found = False
         for entry in self.passiveInterfaces:
             if interface == entry[0]:
-                print("eigrp passive interface is configured properly")
+                found = True
                 break
-        for entry in self.interfaces:
-            begin = re.findall("[a-zA-Z]+",entry[0])[0]
-            end = entry[0].replace(begin,'')
-            if interface.startswith(begin) and interface.endswith(end):
-                print("eigrp passive interface is not configured properly")
-                telnet.execute("conf t")
-                telnet.execute("router eigrp "+entry[1])
-                telnet.execute("passive-interface "+interface)
-                telnet.execute("end")
-                break
+        if found == False:
+            for entry in self.interfaces:
+                begin = re.findall("[a-zA-Z]+",entry[0])[0]
+                end = entry[0].replace(begin,'')
+                if interface.startswith(begin) and interface.endswith(end):
+                    missedCommands.append("passive-interface")
+                    break
         if re.search("ip access-group ([^in]*)",interface_config,re.MULTILINE)==None:
-            telnet.execute("conf t")
-            if self.accesslist==False:
-
-                telnet.execute("ip access-list extended deny_eigrp")
-                telnet.execute("deny eigrp any any")
-                telnet.execute("permit ip any any")
-                telnet.execute("exit")
-                self.accesslist = True
-            telnet.execute("interface "+interface[0])
-            telnet.execute("ip access-group deny_eigrp in")
-            telnet.execute("end")
+            missedCommands.append("ip access-group in")
         else:
             accesslistName = re.findall("ip access-group .* in",interface_config,re.MULTILINE)[0].replace('ip access-group','').replace('in','').strip()
-            telnet.execute("conf t")
             if re.match("[0-9]+",accesslistName):
-                entries = []
-                entries.append("deny eigrp any any")
                 accesslistEntries = re.findall("access-list "+accesslistName+" .*",running_config,re.MULTILINE)
                 if "access-list "+accesslistName+" deny eigrp any any" not in accesslistEntries:
                         if "acl_"+accesslistName not in self.acl_changed:
-                            for line in accesslistEntries:
-                                entries.append(line.replace("access-list "+accesslistName,'').strip())
-                            telnet.execute("ip access-list extended acl_"+accesslistName)
-                            for entry in entries:
-                                telnet.execute(entry)
-                            telnet.execute("exit")
-                            self.acl_changed.append("acl_"+accesslistName)
-                        telnet.execute("interface "+interface[0])
-                        telnet.execute("ip access-group acl_"+accesslistName+" in")
-                        telnet.execute("exit")
+                            missedCommands.append("deny eigrp any any")
             else:
                 if accesslistName not in self.acl_changed:
-                    telnet.execute("do show access-lists "+accesslistName+" | redirect tftp://"+self.server_ip+"/"+self.host+"_acl_config")
+                    telnet.execute("show access-lists "+accesslistName+" | redirect tftp://"+self.server_ip+"/"+self.host+"_acl_config")
                     telnet.readUntil(b"!")
                     telnet.readUntil(b"#")
                     acl = open(self.configDirectory+"/"+self.host+"_acl_config").read().strip()
                     if "deny eigrp any any" not in acl:
-                        entryNumber = re.findall("[0-9]+",acl.split('\n')[1],re.MULTILINE)[0]
-                        newEntry = int(entryNumber)-1
-                        telnet.execute("ip access-list extended "+accesslistName)
-                        telnet.execute(str(newEntry)+" deny eigrp any any")
-                        telnet.execute("exit")
+                        missedCommands.append("deny eigrp any any")
                     os.remove(self.configDirectory+"/"+self.host+"_acl_config")
-                    self.acl_changed.append(accesslistName)
-            telnet.execute("end")
+        return missedCommands
 
     def checkOperatingInterfaceByTelnet(self,telnet,interface_config):
         interface = interface_config.split('\n')[0].strip()
@@ -175,11 +147,11 @@ class EIGRP:
             end = entry[0].replace(begin,'')
             if interface.startswith(begin) and interface.endswith(end):
                 if re.search("ip authentication mode eigrp "+entry[1]+" md5\n",interface_config,re.MULTILINE)==None:
-                    print("you don't use any authentication method on "+interface+" interface")
-                    telnet.execute("conf t")
-                    telnet.execute("interface "+interface)
-                    telnet.execute("ip authentication mode eigrp "+entry[1]+" md5")
-                    telnet.execute("end")
+                    return False
+
+                else:
+                    return True
+        return True
 
     def checkBySSH(self,ssh):
         ssh.exec("show ip eigrp interfaces | redirect tftp://"+self.server_ip+"/"+self.host+"_eigrp_interfaces_config")
@@ -242,15 +214,87 @@ class EIGRP:
 
     def checkPassiveInterface(self,accessMethod,interface_config,running_config):
         if isinstance(accessMethod,Telnet):
-            self.checkPassiveInterfaceByTelnet(accessMethod,interface_config,running_config)
+            return self.checkPassiveInterfaceByTelnet(accessMethod,interface_config,running_config)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkPassiveInterfaceBySSH(accessMethod,interface_config,running_config)
+            return self.checkPassiveInterfaceBySSH(accessMethod,interface_config,running_config)
 
     def checkOperatingInterface(self,accessMethod,interface_config):
         if isinstance(accessMethod,Telnet):
-            self.checkOperatingInterfaceByTelnet(accessMethod,interface_config)
+            return self.checkOperatingInterfaceByTelnet(accessMethod,interface_config)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkOperatingInterfaceBySSH(accessMethod,interface_config)
+            return self.checkOperatingInterfaceBySSH(accessMethod,interface_config)
+
+    def solveInterfaceByTelnet(self,telnet,running_config,interface,command):
+        telnet.execute("conf t")
+        if command == 'deny eigrp any any':
+            accesslistName = re.findall("ip access-group .* in",interface,re.MULTILINE)[0].replace('ip access-group','').replace('in','').strip()
+            if re.match("[0-9]+",accesslistName):
+                entries = []
+                entries.append("deny eigrp any any")
+                accesslistEntries = re.findall("access-list "+accesslistName+" .*",running_config,re.MULTILINE)
+                for line in accesslistEntries:
+                    entries.append(line.replace("access-list "+accesslistName,'').strip())
+                telnet.execute("ip access-list extended acl_"+accesslistName)
+                for entry in entries:
+                    telnet.execute(entry)
+                telnet.execute("exit")
+                self.acl_changed.append("acl_"+accesslistName)
+                telnet.execute("interface "+interface.split('\n')[0].strip())
+                telnet.execute("ip access-group acl_"+accesslistName+" in")
+                telnet.execute("exit")
+            else:
+                telnet.execute("do show access-lists "+accesslistName+" | redirect tftp://"+self.server_ip+"/"+self.host+"_acl_config")
+                telnet.readUntil(b"!")
+                telnet.readUntil(b"#")
+                acl = open(self.configDirectory+"/"+self.host+"_acl_config").read().strip()
+                entryNumber = re.findall("[0-9]+",acl.split('\n')[1],re.MULTILINE)[0]
+                newEntry = int(entryNumber)-1
+                telnet.execute("ip access-list extended "+accesslistName)
+                telnet.execute(str(newEntry)+" deny eigrp any any")
+                telnet.execute("exit")
+                os.remove(self.configDirectory+"/"+self.host+"_acl_config")
+                self.acl_changed.append(accesslistName)
+        elif command ==  'ip access-group in':
+            if self.accesslist==False:
+                telnet.execute("ip access-list extended deny_eigrp")
+                telnet.execute("deny eigrp any any")
+                telnet.execute("permit ip any any")
+                telnet.execute("exit")
+                self.accesslist = True
+            telnet.execute("interface "+interface.split('\n')[0].strip())
+            telnet.execute("ip access-group deny_eigrp in")
+            telnet.execute("exit")
+        elif command == 'passive-interface':
+            for entry in self.interfaces:
+                begin = re.findall("[a-zA-Z]+",entry[0])[0]
+                end = entry[0].replace(begin,'')
+                if interface.split('\n')[0].strip().startswith(begin) and interface.split('\n')[0].strip().endswith(end):
+                    telnet.execute("router eigrp "+entry[1])
+                    telnet.execute("passive-interface "+interface.split('\n')[0].strip())
+                    telnet.execute("exit")
+                    break
+        elif command == 'ip authentication mode eigrp md5':
+            telnet.execute("interface "+interface.split('\n')[0].strip())
+            interface_name = interface.split('\n')[0].strip()
+            for entry in self.interfaces:
+                begin = re.findall("[a-zA-Z]+",entry[0])[0]
+                end = entry[0].replace(begin,'')
+                if interface_name.startswith(begin) and interface_name.endswith(end):
+                    telnet.execute("ip authentication mode eigrp "+entry[1]+" md5")
+                    telnet.execute("exit")
+                    break
+
+        telnet.execute("end")
+
+
+    def solveInterfaceBySSH(self,ssh,running_config,interface,command):
+        print()
+
+    def solveInterface(self,accessMethod,running_config,interface,command):
+        if isinstance(accessMethod,Telnet):
+            self.solveInterfaceByTelnet(accessMethod,running_config,interface,command)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveInterfaceBySSH(accessMethod,running_config,interface,command)
 
     def getInterfaces(self,eigrp_interfaces,running_config):
         instances = eigrp_interfaces.split("EIGRP-IPv4 Interfaces for AS")

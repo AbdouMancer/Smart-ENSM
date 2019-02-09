@@ -13,12 +13,12 @@ class LLDP:
         telnet.readUntil(b"!")
         telnet.readUntil(b"#")
         output = open(self.configDirectory+"/"+self.host+"_lldp_config").read().strip()
+        os.remove(self.configDirectory+"/"+self.host+"_lldp_config")
         if output=="% LLDP is not enabled":
             return False
         else:
             print("command missed : no lldp run")
             return True
-        os.remove(self.configDirectory+"/"+self.host+"_lldp_config")
 
     def checkBySSH(self,ssh):
         output = ssh.exec("show lldp neighbors | redirect tftp://"+self.server_ip+"/"+self.host+"_lldp_config")

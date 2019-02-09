@@ -60,7 +60,7 @@ class DHCP_Spoofing:
             else:
                 return True
 
-        elif type == 'AD':
+        elif type == 'AD' or type == 'AA':
             if re.search("ip dhcp snooping trust\n",interface_config,re.MULTILINE)==None:
                 return False
             else:

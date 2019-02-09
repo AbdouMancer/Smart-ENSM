@@ -29,7 +29,7 @@ class Characteristics:
         self.execute("")
 
     def getInterfaces(self,running_config):
-        interfaces = re.findall("interface([^!]*)",running_config,re.MULTILINE)
+        interfaces = re.findall("\ninterface([^!]*)",running_config,re.MULTILINE)
         return interfaces
 
 

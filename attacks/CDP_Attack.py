@@ -14,12 +14,12 @@ class CDP:
         telnet.readUntil(b"!")
         telnet.readUntil(b"#")
         output = open(self.configDirectory+"/"+self.host+"_cdp_config").read().strip()
+        os.remove(self.configDirectory+"/"+self.host+"_cdp_config")
         if output=="% CDP is not enabled":
             return False
         else:
             print("command missed : no cdp run")
             return True
-        os.remove(self.configDirectory+"/"+self.host+"_cdp_config")
 
 
 

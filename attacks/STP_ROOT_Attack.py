@@ -31,13 +31,9 @@ class STP_ROOT:
 
     def checkInterfaceByTelnet(self,telnet,interface_config):
         if re.search("spanning-tree guard root\n",interface_config,re.MULTILINE)==None:
-            print("the interface is vulnerable to STP Root Attack")
-            telnet.execute("conf t")
-            telnet.execute("interface "+interface_config.split('\n')[0].strip())
-            telnet.execute("spanning-tree guard root")
-            telnet.execute("end")
+            return False
         else:
-            print("the interface is not vulnerable to STP Root Attack")
+            return True
 
     def checkBySSH(self,ssh):
         output = ssh.exec("show spanning-tree root port | redirect tftp://"+self.server_ip+"/"+self.host+"_stp_root_config")
@@ -60,10 +56,24 @@ class STP_ROOT:
 
     def checkInterface(self,accessMethod,interface_config):
         if isinstance(accessMethod,Telnet):
-            self.checkInterfaceByTelnet(accessMethod,interface_config)
+            return self.checkInterfaceByTelnet(accessMethod,interface_config)
         elif isinstance(accessMethod,SshVersionII):
-            self.checkInterfaceBySSH(accessMethod,interface_config)
+            return self.checkInterfaceBySSH(accessMethod,interface_config)
 
+    def solveByTelnet(self,telnet,interface):
+        telnet.execute("conf t")
+        telnet.execute("interface "+interface.split('\n')[0].strip())
+        telnet.execute("spanning-tree guard root")
+        telnet.execute("end")
+
+    def solveBySSH(self,ssh,interface):
+        ssh.conf(["interface "+interface.split('\n')[0].strip(),"spanning-tree guard root","exit"])
+
+    def solve(self,accessMethod,interface):
+        if isinstance(accessMethod,Telnet):
+            self.solveByTelnet(accessMethod,interface)
+        elif isinstance(accessMethod,SshVersionII):
+            self.solveBySSH(accessMethod,interface)
 
     def getVulnerableTrunkInterfaces(self,stp_output,running_config):
         root_ports = []

@@ -19,6 +19,7 @@ from attacks.IP_Spoofing import IP_Spoofing
 from attacks.ARP_Spoofing import ARP_Spoofing
 from attacks.HSRP_Abuse_Attack import HSRP_Abuse
 from attacks.STP_ROOT_Attack import STP_ROOT
+from attacks.STP_Stability import STP_Stability
 from attacks.OSPF_Attack import OSPF
 from attacks.EIGRP_Attack import EIGRP
 from attacks.DNS_Poisoning_Attack import DNS
@@ -69,6 +70,7 @@ for row in range(1,sheet.nrows):
         arp_spoofing = ARP_Spoofing(server_ip,host,configDirectory)
         hsrp = HSRP_Abuse(server_ip,host,configDirectory)
         stp_root = STP_ROOT(server_ip,host,configDirectory)
+        stp_stability = STP_Stability(server_ip,host,configDirectory)
         ospf = OSPF(server_ip,host,configDirectory)
         eigrp = EIGRP(server_ip,host,configDirectory)
         routing_protocol = ''
@@ -246,7 +248,14 @@ for row in range(1,sheet.nrows):
                     if response == 'yes':
                         dns.solveInterface(telnet,interface,running_config)
 
-            elif tag == 'AD':
+            elif tag == 'AD' or tag == 'AA':
+                exists = stp_stability.checkInterface(telnet,interface)
+                if exists == False:
+                    print("missed command : spanning-tree guard loop")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        stp_stability.solve(telnet,interface)
+
                 exists = dhcp_spoofing.checkInterface(telnet,interface,tag)
                 if exists == False:
                     print("command missed : ip dhcp snooping trust")
@@ -263,25 +272,73 @@ for row in range(1,sheet.nrows):
 
             elif tag == 'DA':
                 print('Distribution-Access')
-                stp_root.checkInterface(telnet,interface)
+                exists = stp_root.checkInterface(telnet,interface)
+                if exists == False:
+                    print("missed command : spanning-tree guard root")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        stp_root.solve(telnet,interface)
+
             elif tag == 'DD':
                 print('Distribution-Distribution')
+                exists = stp_stability.checkInterface(telnet,interface)
+                if exists == False:
+                    print("missed command : spanning-tree guard loop")
+                    response = input("Would you like to resolve the problem ?")
+                    if response == 'yes':
+                        stp_stability.solve(telnet,interface)
+
                 if routing_protocol == 'eigrp':
-                    eigrp.checkOperatingInterface(telnet,interface)
+                    exists = eigrp.checkOperatingInterface(telnet,interface)
+                    if exists == False:
+                        print("missed command : ip authentication mode eigrp md5")
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            eigrp.solveInterface(telnet,running_config,interface,"ip authentication mode eigrp md5")
+
                 elif routing_protocol == 'ospf':
-                    ospf.checkOperatingInterface(telnet,interface)
+                    missedCommands = ospf.checkOperatingInterface(telnet,interface)
+                    for command in missedCommands:
+                        print("missed command : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            ospf.solveInterface(telnet,running_config,interface,command)
+
             elif tag == 'DE':
                 print('Distribution-Edge')
                 if routing_protocol == 'eigrp':
-                    eigrp.checkOperatingInterface(telnet,interface)
+                    exists = eigrp.checkOperatingInterface(telnet,interface)
+                    if exists == False:
+                        print("missed command : ip authentication mode eigrp md5")
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            eigrp.solveInterface(telnet,running_config,interface,"ip authentication mode eigrp md5")
+
                 elif routing_protocol == 'ospf':
-                    ospf.checkOperatingInterface(telnet,interface)
+                    missedCommands = ospf.checkOperatingInterface(telnet,interface)
+                    for command in missedCommands:
+                        print("missed command : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            ospf.solveInterface(telnet,running_config,interface,command)
             elif tag == 'ED':
                 print('Edge-Distribution')
                 if routing_protocol == 'eigrp':
-                    eigrp.checkOperatingInterface(telnet,interface)
+                    exists = eigrp.checkOperatingInterface(telnet,interface)
+                    if exists == False:
+                        print("missed command : ip authentication mode eigrp md5")
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            eigrp.solveInterface(telnet,running_config,interface,"ip authentication mode eigrp md5")
+
                 elif routing_protocol == 'ospf':
-                    ospf.checkOperatingInterface(telnet,interface)
+
+                    missedCommands = ospf.checkOperatingInterface(telnet,interface)
+                    for command in missedCommands:
+                        print("missed command : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            ospf.solveInterface(telnet,running_config,interface,command)
 
 
                 exists = hsrp.checkInterface(telnet,interface)
@@ -298,9 +355,20 @@ for row in range(1,sheet.nrows):
             elif tag == 'SVI':
                 print('Virtual Interface')
                 if routing_protocol == 'eigrp':
-                    eigrp.checkPassiveInterfaceByTelnet(telnet,interface,running_config)
+                    missedCommands = eigrp.checkPassiveInterface(telnet,interface,running_config)
+                    for command in missedCommands:
+                        print("missed command : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            eigrp.solveInterface(telnet,running_config,interface,command)
+
                 elif routing_protocol == 'ospf':
-                    ospf.checkPassiveInterfaceByTelnet(telnet,interface,running_config)
+                    missedCommands = ospf.checkPassiveInterface(telnet,interface,running_config)
+                    for command in missedCommands:
+                        print("missed command : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            ospf.solveInterface(telnet,running_config,interface,command)
 
                 exists = hsrp.checkInterface(telnet,interface)
                 if exists == False:
@@ -312,9 +380,20 @@ for row in range(1,sheet.nrows):
             elif tag == 'lo':
                 print('loopback interface')
                 if routing_protocol == 'eigrp':
-                    eigrp.checkPassiveInterfaceByTelnet(telnet,interface,running_config)
+                    missedCommands = eigrp.checkPassiveInterface(telnet,interface,running_config)
+                    for command in missedCommands:
+                        print("missed command : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            eigrp.solveInterface(telnet,running_config,interface,command)
+
                 elif routing_protocol == 'ospf':
-                    ospf.checkPassiveInterfaceByTelnet(telnet,interface,running_config)
+                    missedCommands = ospf.checkPassiveInterface(telnet,interface,running_config)
+                    for command in missedCommands:
+                        print("missed command : "+command)
+                        response = input("Would you like to resolve the problem ?")
+                        if response == 'yes':
+                            ospf.solveInterface(telnet,running_config,interface,command)
         #dns.apply(telnet,server_ip,host,configDirectory)
         #cdp = CDP(server_ip,host,configDirectory)
         #cdp.check(telnet)
