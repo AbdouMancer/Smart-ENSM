@@ -16,7 +16,7 @@ on:
         # confirm choice
         description: 'confirm your choice to merge'
         required: true
-        default: 'true'
+        default: 'yes'
 
 jobs:
   merge_master_to_release:
