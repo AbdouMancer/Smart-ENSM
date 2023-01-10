@@ -97,7 +97,24 @@ jobs:
                 git merge --abort
                 continue
               fi
-              git push --set-upstream origin "${RELEASE_BRANCH}"              
+              git push --set-upstream origin "${RELEASE_BRANCH}" 
+              
+              # this is probably a dead piece of code as version difference will cause
+              # merge conflicts that will require manual resolution
+              if [[ "${repo}" == 'db-dxp-cms' ]]; then
+                TAG=$(echo "${RELEASE_BRANCH}" | awk -F"release-" '{print $2}')
+                REVISION=$(mvn help:evaluate -Dexpression=revision -q -DforceStdout)
+                echo -e "REVISION: ${REVISION}\n"
+                if [[ "${REVISION}" =~ ^null.*$ ]]; then
+                  echo "Changing POM version for Magnolia to ${TAG}-SNAPSHOT"
+                  mvn versions:set -DnewVersion="${TAG}-SNAPSHOT" -DgenerateBackupPoms=false
+                else
+                  echo "Changing POM revision for Magnolia to ${TAG}-SNAPSHOT"
+                  mvn versions:set-property -Dproperty=revision -DnewVersion="${TAG}-SNAPSHOT" -q -DgenerateBackupPoms=false
+                fi
+                git diff
+                git commit -am "Pom version update to 1.0.0-SNAPSHOT" && git push --set-upstream origin "${RELEASE_BRANCH}"
+              fi
           done
 
           exit 0
