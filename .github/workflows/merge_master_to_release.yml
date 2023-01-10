@@ -77,11 +77,11 @@ jobs:
               git show-branch origin/"${RELEASE_BRANCH}" && echo -e  "\n-----Skipping existing branch for repo ${repo}-----\n\n" && continue
               echo -e "\n-----Pushing ${RELEASE_BRANCH} for ${repo}-----\n\n"
 
-              git checkout develop
+              git checkout ${RELEASE_BRANCH}
               git pull
-              git reset --hard origin/develop
+              git reset --hard origin/${RELEASE_BRANCH}
               git branch -D "${RELEASE_BRANCH}" || echo
-              git checkout --no-track -b "${RELEASE_BRANCH}" origin/develop
+              git checkout --no-track -b "${RELEASE_BRANCH}" origin/${RELEASE_BRANCH}
 
               if [[ ${repo} == 'db-test-cms' ]]; then
                 REVISION=$(mvn help:evaluate -Dexpression=revision -q -DforceStdout)
