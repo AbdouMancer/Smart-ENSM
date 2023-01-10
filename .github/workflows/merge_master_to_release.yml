@@ -1,0 +1,103 @@
+name: merge_master_to_develop
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        # release branch name as per standards, for example - release-2020.10.0
+        description: 'release-2023.01.10'
+        required: true
+        
+      repo_names:
+        # add the repos with space separated, for example - 'db-test-foundation-releases db-test-aws'
+        description: 'List of repositories to create the release branch in'
+        required: true
+        default: 'AbdouMancer/Smart-ENSM'
+
+jobs:
+  merge_master_to_release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          #!/bin/bash
+
+          # Exit immediately, if there are any errors, so that bamboo plan should return a non-zero error code
+          # Look out for some unexpected outcomes, as the script might exit in an if or a for statement where
+          # the exit is not required
+          # if [ "$DEBUG" == "true" ]; then
+          #   set -x
+          # fi
+          WORK_DIR="$(pwd)"
+          export WORK_DIR
+
+          # # Export environment variables defined in variables.sh
+          # echo 'Exporting variables...'
+          # # shellcheck disable=SC1091
+          # . "${WORK_DIR}"/bamboo-specs/scripts/variables.sh
+
+          LIST="${{ github.event.inputs.repo_names }}"
+          GITURL="https://${{secrets.WORKFLOW_GITHUB_TOKEN}}@github.com/ICA/"
+          RELEASE_BRANCH=${{ github.event.inputs.release_name }}
+
+          if [[ -z ${RELEASE_BRANCH} ]]; then
+            echo "RELEASE_BRANCH variable is empty, please use \"Run customized...\" option and use proper value (release-202x.xx.x) for RELEASE_BRANCH variable"
+            exit 1
+          fi
+
+          if [[ ! ${RELEASE_BRANCH} =~ ^release-[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+            echo "RELEASE_BRANCH values does not match release branch name standards, for example: release-2020.10.0"
+            exit 1
+          fi
+
+          sleep 5
+
+          echo "Start"
+
+          currentDirectory="${WORK_DIR}"
+          echo "Current Working Directory - ${currentDirectory}"
+
+          VERSION=$(echo "${RELEASE_BRANCH}" | awk -F"release-" '{print $2}')
+
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+          git config --global credential.helper cache
+
+          for repo in ${LIST}; do
+              cd .. && mkdir -p "${repo}" && cd "${repo}"
+              git clone "${GITURL}"/"${repo}".git || exit 1
+              #cd "${currentDirectory}"/"${repo}" || { echo "Can not access to ${currentDirectory}/${repo}"; }
+              current_repo_dir="$(pwd)"
+              echo "Directory we are in: ${current_repo_dir}"
+              #cd ${currentDirectory}/${repo} && ls -al
+              cd "${repo}" && ls -al
+              git fetch
+
+              echo -e "\n-----Checking ${RELEASE_BRANCH} for ${repo}-----\n\n"
+              git show-branch origin/"${RELEASE_BRANCH}" && echo -e  "\n-----Skipping existing branch for repo ${repo}-----\n\n" && continue
+              echo -e "\n-----Pushing ${RELEASE_BRANCH} for ${repo}-----\n\n"
+
+              git checkout develop
+              git pull
+              git reset --hard origin/develop
+              git branch -D "${RELEASE_BRANCH}" || echo
+              git checkout --no-track -b "${RELEASE_BRANCH}" origin/develop
+
+              if [[ ${repo} == 'db-test-cms' ]]; then
+                REVISION=$(mvn help:evaluate -Dexpression=revision -q -DforceStdout)
+                echo -e "REVISION: ${REVISION}\n"
+                if [[ "${REVISION}" =~ ^null.*$ ]]; then
+                  echo "Changing POM version for Magnolia"
+                  mvn versions:set -DnewVersion="${VERSION}-SNAPSHOT" -DgenerateBackupPoms=false
+                else
+                  echo "Changing POM revision for Magnolia"
+                  mvn versions:set-property -Dproperty=revision -DnewVersion="${VERSION}-SNAPSHOT" -q -DgenerateBackupPoms=false
+                fi
+                git diff
+                git commit -am "Pom version update for release ${VERSION}"
+              fi
+
+              git push --set-upstream origin "${RELEASE_BRANCH}"
+              cd .. 
+          done
+
+          exit 0
