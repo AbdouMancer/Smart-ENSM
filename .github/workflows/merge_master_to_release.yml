@@ -89,10 +89,10 @@ jobs:
               git checkout "${RELEASE_BRANCH}"
               git pull origin "${RELEASE_BRANCH}"
 
-              if [[ $(git rev-parse "${RELEASE_BRANCH}") ==  $(git merge-base "${RELEASE_BRANCH}" "${MASTER_BRANCH}") ]]; then
-                echo "Release branch ${RELEASE_BRANCH} have been already merged earlier to ${MASTER_BRANCH}, skipping"
-                continue;
-              fi
+              #if [[ $(git rev-parse "${RELEASE_BRANCH}") ==  $(git merge-base "${RELEASE_BRANCH}" "${MASTER_BRANCH}") ]]; then
+              #  echo "Release branch ${RELEASE_BRANCH} have been already merged earlier to ${MASTER_BRANCH}, skipping"
+              #  continue;
+              #fi
 
               if [[ $(git rev-parse "${MASTER_BRANCH}") ==  $(git merge-base "${RELEASE_BRANCH}" "${MASTER_BRANCH}") ]]; then
                 echo "Branch ${MASTER_BRANCH} have been already merged earlier to release branch ${RELEASE_BRANCH}, skipping"
