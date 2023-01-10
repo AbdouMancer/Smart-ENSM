@@ -9,9 +9,9 @@ on:
         
       repo_names:
         # add the repos with space separated, for example - 'db-test-foundation-releases db-test-aws'
-        description: 'List of repositories to create the release branch in'
+        description: 'List of repositories to merge from master to release'
         required: true
-        default: 'Smart-ENSM'
+        default: ''
       confirm_choice:
         # confirm choice
         description: 'confirm your choice to merge'
@@ -29,16 +29,9 @@ jobs:
           # Exit immediately, if there are any errors, so that bamboo plan should return a non-zero error code
           # Look out for some unexpected outcomes, as the script might exit in an if or a for statement where
           # the exit is not required
-          # if [ "$DEBUG" == "true" ]; then
-          #   set -x
-          # fi
+          
           WORK_DIR="$(pwd)"
           export WORK_DIR
-
-          # # Export environment variables defined in variables.sh
-          # echo 'Exporting variables...'
-          # # shellcheck disable=SC1091
-          # . "${WORK_DIR}"/bamboo-specs/scripts/variables.sh
 
           LIST="${{ github.event.inputs.repo_names }}"
           GITURL="https://${{secrets.WORKFLOW_GITHUB_TOKEN}}@github.com/AbdouMancer/"
