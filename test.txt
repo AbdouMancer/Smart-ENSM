@@ -1,1 +1,1 @@
-this is a test of merge master to release action
+this is a test the operation of merge master to release branch
