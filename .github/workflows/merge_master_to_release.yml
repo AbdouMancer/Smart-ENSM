@@ -4,7 +4,7 @@ on:
     inputs:
       release_name:
         # release branch name as per standards, for example - release-2020.10.0
-        description: 'release-2023.01.10'
+        description: 'release branch name as per standards, for example - release-2023.01.0'
         required: true
         
       repo_names:
