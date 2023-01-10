@@ -12,6 +12,11 @@ on:
         description: 'List of repositories to create the release branch in'
         required: true
         default: 'Smart-ENSM'
+      confirm_choice:
+        # confirm choice
+        description: 'confirm your choice to merge'
+        required: true
+        default: 'true'
 
 jobs:
   merge_master_to_release:
@@ -40,7 +45,7 @@ jobs:
           GITURL="https://github.com/AbdouMancer/"
           RELEASE_BRANCH=${{ github.event.inputs.release_name }}
           MASTER_BRANCH="master"
-          CONFIRM_CHOICE="${CONFIRM_CHOICE}"
+          CONFIRM_CHOICE=${{ github.event.inputs.confirm_choice }}
           
           if [[ -z ${CONFIRM_CHOICE} ]]; then
             echo "CONFIRM_CHOICE variable is empty, please use \"Run customized...\" option with CONFIRM variable containing any value diff than empty string"
