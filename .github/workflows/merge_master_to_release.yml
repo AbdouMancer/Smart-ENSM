@@ -39,13 +39,20 @@ jobs:
           #GITURL="https://${{secrets.WORKFLOW_GITHUB_TOKEN}}@github.com/AbdouMancer/"
           GITURL="https://github.com/AbdouMancer/"
           RELEASE_BRANCH=${{ github.event.inputs.release_name }}
+          MASTER_BRANCH="master"
+          CONFIRM_CHOICE="${CONFIRM_CHOICE}"
+          
+          if [[ -z ${CONFIRM_CHOICE} ]]; then
+            echo "CONFIRM_CHOICE variable is empty, please use \"Run customized...\" option with CONFIRM variable containing any value diff than empty string"
+            exit 1
+          fi
 
-          if [[ -z ${RELEASE_BRANCH} ]]; then
+          if [[ -z "${RELEASE_BRANCH}" ]]; then
             echo "RELEASE_BRANCH variable is empty, please use \"Run customized...\" option and use proper value (release-202x.xx.x) for RELEASE_BRANCH variable"
             exit 1
           fi
 
-          if [[ ! ${RELEASE_BRANCH} =~ ^release-[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+          if [[ ! "${RELEASE_BRANCH}" =~ ^release-[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
             echo "RELEASE_BRANCH values does not match release branch name standards, for example: release-2020.10.0"
             exit 1
           fi
@@ -64,41 +71,36 @@ jobs:
           git config --global credential.helper cache
 
           for repo in ${LIST}; do
-              cd .. && mkdir -p "${repo}" && cd "${repo}"
-              git clone "${GITURL}"/"${repo}".git || exit 1
-              #cd "${currentDirectory}"/"${repo}" || { echo "Can not access to ${currentDirectory}/${repo}"; }
-              current_repo_dir="$(pwd)"
-              echo "Directory we are in: ${current_repo_dir}"
-              #cd ${currentDirectory}/${repo} && ls -al
-              cd "${repo}" && ls -al
+              cd "${currentDirectory}" || { echo "Can not access to ${currentDirectory}"; }
+              if [[ ! -d "${repo}" ]]; then
+                git clone "${GITURL}"/"${repo}" || exit 1
+              fi
+              cd "${currentDirectory}"/"${repo}" || { echo "Can not access to ${currentDirectory}/${repo}"; }
               git fetch
 
-              echo -e "\n-----Checking ${RELEASE_BRANCH} for ${repo}-----\n\n"
-              git show-branch origin/"${RELEASE_BRANCH}" && echo -e  "\n-----Skipping existing branch for repo ${repo}-----\n\n" && continue
-              echo -e "\n-----Pushing ${RELEASE_BRANCH} for ${repo}-----\n\n"
+              git checkout "${MASTER_BRANCH}"
+              git pull origin "${MASTER_BRANCH}"
 
-              git checkout ${RELEASE_BRANCH}
-              git pull
-              git reset --hard origin/${RELEASE_BRANCH}
-              git branch -D "${RELEASE_BRANCH}" || echo
-              git checkout --no-track -b "${RELEASE_BRANCH}" origin/${RELEASE_BRANCH}
+              git checkout "${RELEASE_BRANCH}"
+              git pull origin "${RELEASE_BRANCH}"
 
-              if [[ ${repo} == 'db-test-cms' ]]; then
-                REVISION=$(mvn help:evaluate -Dexpression=revision -q -DforceStdout)
-                echo -e "REVISION: ${REVISION}\n"
-                if [[ "${REVISION}" =~ ^null.*$ ]]; then
-                  echo "Changing POM version for Magnolia"
-                  mvn versions:set -DnewVersion="${VERSION}-SNAPSHOT" -DgenerateBackupPoms=false
-                else
-                  echo "Changing POM revision for Magnolia"
-                  mvn versions:set-property -Dproperty=revision -DnewVersion="${VERSION}-SNAPSHOT" -q -DgenerateBackupPoms=false
-                fi
-                git diff
-                git commit -am "Pom version update for release ${VERSION}"
+              if [[ $(git rev-parse "${RELEASE_BRANCH}") ==  $(git merge-base "${RELEASE_BRANCH}" "${MASTER_BRANCH}") ]]; then
+                echo "Release branch ${RELEASE_BRANCH} have been already merged earlier to ${MASTER_BRANCH}, skipping"
+                continue;
               fi
 
-              git push --set-upstream origin "${RELEASE_BRANCH}"
-              cd .. 
+              if [[ $(git rev-parse "${MASTER_BRANCH}") ==  $(git merge-base "${RELEASE_BRANCH}" "${MASTER_BRANCH}") ]]; then
+                echo "Branch ${MASTER_BRANCH} have been already merged earlier to release branch ${RELEASE_BRANCH}, skipping"
+                continue;
+              fi
+
+              # merge master branch to release branch
+              if ! git merge "${MASTER_BRANCH}"; then
+                echo "ERROR merging repo: ${repo}. Aborting merge..."
+                git merge --abort
+                continue
+              fi
+              git push --set-upstream origin "${RELEASE_BRANCH}"              
           done
 
           exit 0
