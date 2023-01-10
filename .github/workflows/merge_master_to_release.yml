@@ -43,7 +43,7 @@ jobs:
           LIST="${{ github.event.inputs.repo_names }}"
           #GITURL="https://${{secrets.WORKFLOW_GITHUB_TOKEN}}@github.com/AbdouMancer/"
           #GITURL="https://github.com/AbdouMancer/"
-          GITURL="https://AbdouMancer@github.com/AbdouMancer/"
+          GITURL="https://${{secrets.WORKFLOW_GITHUB_TOKEN}}@github.com/AbdouMancer/"
           RELEASE_BRANCH=${{ github.event.inputs.release_name }}
           MASTER_BRANCH="master"
           CONFIRM_CHOICE=${{ github.event.inputs.confirm_choice }}
