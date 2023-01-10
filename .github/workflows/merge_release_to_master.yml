@@ -1,0 +1,82 @@
+name: merge_release_to_master
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        # release branch name as per standards, for example - release-2020.10.0
+        description: 'release branch name as per standards, for example - release-2023.01.0'
+        required: true
+        
+      repo_names:
+        # add the repos with space separated, for example - 'db-test-foundation-releases db-test-aws'
+        description: 'List of repositories to merge from release to master'
+        required: true
+        default: ''
+
+jobs:
+  merge_release_to_master:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          #!/bin/bash
+          # Exit immediately, if there are any errors, so that bamboo plan should return a non-zero error code
+          # Look out for some unexpected outcomes, as the script might exit in an if or a for statement where
+          # the exit is not required
+          
+          WORK_DIR="$(pwd)"
+          export WORK_DIR
+          LIST="${{ github.event.inputs.repo_names }}"
+          GITURL="https://${{secrets.WORKFLOW_GITHUB_TOKEN}}@github.com/AbdouMancer/"
+          RELEASE_BRANCH=${{ github.event.inputs.release_name }}
+          MASTER_BRANCH="master"
+          TAG=$(echo $RELEASE_BRANCH | awk -F"release-" '{print $2}')
+          
+          
+          if [[ -z "${RELEASE_BRANCH}" ]]; then
+            echo "RELEASE_BRANCH variable is empty, please use \"Run customized...\" option and use proper value (release-202x.xx.x) for RELEASE_BRANCH variable"
+            exit 1
+          fi
+          if [[ ! "${RELEASE_BRANCH}" =~ ^release-[0-9]{4}\.[0-9]{1,2}\.[0-9]{1,2}$ ]]; then
+            echo "RELEASE_BRANCH values does not match release branch name standards, for example: release-2020.10.0"
+            exit 1
+          fi
+          sleep 5
+          echo "Start"
+          currentDirectory="${WORK_DIR}"
+          echo "Current Working Directory - ${currentDirectory}"
+          VERSION=$(echo "${RELEASE_BRANCH}" | awk -F"release-" '{print $2}')
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "github-actions"
+          git config --global credential.helper cache
+          for repo in ${LIST}; do
+              cd "${currentDirectory}" || { echo "Can not access to ${currentDirectory}"; }
+              if [[ ! -d "${repo}" ]]; then
+                git clone "${GITURL}"/"${repo}" || exit 1
+              fi
+              cd "${currentDirectory}"/"${repo}" || { echo "Can not access to ${currentDirectory}/${repo}"; }
+              git fetch
+              git checkout "${RELEASE_BRANCH}"
+              git pull origin "${RELEASE_BRANCH}"
+              
+              git checkout "${MASTER_BRANCH}"
+              git pull origin "${MASTER_BRANCH}"
+              
+              # merge release branch to master
+              if ! git merge --no-ff "${RELEASE_BRANCH}"; then
+                echo "ERROR merging repo: ${repo}. Aborting merge..."
+                git merge --abort
+                continue
+              fi
+              git push --set-upstream origin "${MASTER_BRANCH}"
+              
+              if [[ $(git diff "${MASTER_BRANCH}" "${RELEASE_BRANCH}" | wc -l) -gt 0 ]]; then
+                echo "There is a difference between master and release branch, please check it, fix it and re-run this script"
+                exit 1
+              fi
+
+              git tag "${TAG}" || echo "Tag already exists"
+              git push --tags origin master:master
+                           
+          done
+          exit 0
