@@ -71,7 +71,7 @@ jobs:
 
           VERSION=$(echo "${RELEASE_BRANCH}" | awk -F"release-" '{print $2}')
 
-          git config --global user.email "github-actions@github.com"
+          git config --global user.email "ea_mancer@esi.dz"
           git config --global user.name "AbdouMancer"
           git config --global credential.helper cache
 
