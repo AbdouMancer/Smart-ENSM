@@ -82,6 +82,20 @@ jobs:
               fi
               git push --set-upstream origin "${DEVELOP_BRANCH}"
               
+              if [[ "${repo}" == 'db-dxp-cms' ]]; then
+                REVISION=$(mvn help:evaluate -Dexpression=revision -q -DforceStdout)
+                echo -e "REVISION: ${REVISION}\n"
+                if [[ "${REVISION}" =~ ^null.*$ ]]; then
+                  echo "Changing POM version for Magnolia to 1.0.0-SNAPSHOT"
+                  mvn versions:set -DnewVersion="1.0.0-SNAPSHOT" -DgenerateBackupPoms=false
+                else
+                  echo "Changing POM revision for Magnolia to 1.0.0-SNAPSHOT"
+                  mvn versions:set-property -Dproperty=revision -DnewVersion="1.0.0-SNAPSHOT" -q -DgenerateBackupPoms=false
+                fi
+                git diff
+                git commit -am "pom version update to 1.0.0-SNAPSHOT" && git push --set-upstream origin "${DEVELOP_BRANCH}"
+              fi
+              
           done
 
           exit 0
