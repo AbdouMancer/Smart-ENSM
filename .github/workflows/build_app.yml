@@ -1,0 +1,69 @@
+name: build_app
+on:
+  workflow_dispatch:
+    inputs:
+      api_definition:
+        # add the API definition
+        description: 'API definition of S3 bucket'
+        required: true
+        
+      repo_names:
+        # add the repos with space separated, for example - 'db-test-foundation-releases db-test-aws'
+        description: 'List of repositories to merge from master to develop'
+        required: true
+        default: ''
+
+jobs:
+  build_app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          ### init.sh
+          WORK_DIR=$(pwd)
+          export WORK_DIR
+
+          function install_dependencies(){
+              pretty_print "Install NPM dependencies"
+              npm install
+          }
+
+          install_dependencies
+          
+          ### npm validation
+          function validate_sam_template(){
+              pretty_print "Validate SAM.yaml template"
+              npm run validate:sam
+          }
+
+          function lint_code(){
+              pretty_print "Verify code style quality"
+              npm run lint
+          }
+
+          validate_sam_template
+          lint_code
+          
+          ### nmp build
+          function build_lambdas(){
+              pretty_print "Build lambdas"
+              npm run build:lambda
+          }
+
+          build_lambdas
+          
+          ### npm tests
+          function unit_tests(){
+              pretty_print "Run unit tests"
+              npm run test:unit
+          }
+
+          unit_tests
+          
+          ### npm s3 upload
+          function upload_files_to_s3() {
+              pretty_print "Uploading API definition to S3 bucket"
+              npm run "upload:api:${{ github.event.inputs.api_definition }}"
+          }
+
+          upload_files_to_s3
