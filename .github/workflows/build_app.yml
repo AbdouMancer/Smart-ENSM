@@ -5,19 +5,19 @@ on:
       repo_name:
         # add the repo name
         description: 'Repository name'
-        required: false
+        required: true
         default: ''
       
       branch_name:
         # add the branch name
         description: 'Branch name'
-        required: false
+        required: true
         default: ''
       
       deploy_env:
         # add the deployment environment
         description: 'Deployment Environment'
-        required: false
+        required: true
         default: ''
 
 jobs:
@@ -74,7 +74,7 @@ jobs:
           export WORK_DIR
 
           function install_dependencies(){
-              pretty_print "Install NPM dependencies"
+              echo "Install NPM dependencies"
               npm install
           }
 
@@ -82,12 +82,12 @@ jobs:
           
           ### npm validation
           function validate_sam_template(){
-              pretty_print "Validate SAM.yaml template"
+              echo "Validate SAM.yaml template"
               npm run validate:sam
           }
 
           function lint_code(){
-              pretty_print "Verify code style quality"
+              echo "Verify code style quality"
               npm run lint
           }
 
@@ -96,7 +96,7 @@ jobs:
           
           ### nmp build
           function build_lambdas(){
-              pretty_print "Build lambdas"
+              echo "Build lambdas"
               npm run build:lambda
           }
 
@@ -104,7 +104,7 @@ jobs:
           
           ### npm tests
           function unit_tests(){
-              pretty_print "Run unit tests"
+              echo "Run unit tests"
               npm run test:unit
           }
 
@@ -112,7 +112,7 @@ jobs:
           
           ### npm s3 upload
           function upload_files_to_s3() {
-              pretty_print "Uploading API definition to S3 bucket"
+              echo "Uploading API definition to S3 bucket"
               npm run "upload:api:${ENV_NAME}"
           }
 
