@@ -5,19 +5,19 @@ on:
       repo_name:
         # add the repo name
         description: 'Repository name'
-        required: true
+        required: false
         default: ''
       
       branch_name:
         # add the branch name
         description: 'Branch name'
-        required: true
+        required: false
         default: ''
       
       deploy_env:
         # add the deployment environment
         description: 'Deployment Environment'
-        required: true
+        required: false
         default: ''
 
 jobs:
@@ -27,7 +27,8 @@ jobs:
       - uses: actions/checkout@v3
       - run: |
           #!/bin/bash
-          
+          pwd
+          ls
           export AWS_DEFAULT_REGION='us-east-1'
           BRANCH_NAME=${{ github.event.inputs.branch_name }}
           DEPLOY_ENVIRONMENT=${{ github.event.inputs.deploy_env }}
