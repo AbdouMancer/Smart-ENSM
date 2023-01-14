@@ -28,42 +28,40 @@ jobs:
           DEPLOY_ENVIRONMENT=${{ github.event.inputs.deploy_env }}
           
           if [[ ${BRANCH_NAME} == "develop" ]] || [[ ${BRANCH_NAME} == "direct-develop" ]] || [[ ${BRANCH_NAME} == "direct-int" ]] || [[ ${BRANCH_NAME} =~ ^feature.*$ ]] || [[ ${BRANCH_NAME} =~ ^bugfix.*$ ]]; then
-            export AWS_PROFILE='dev'
-            export ENV_NAME='dev'
+            export AWS_PROFILE='dev' >> $GITHUB_OUTPUT
+            export ENV_NAME='dev' >> $GITHUB_OUTPUT
 
           elif [[ ${BRANCH_NAME} =~ ^release\-[0-9]*\.[0-9]*\.[0-9]*$ ]]; then
 
-            export AWS_PROFILE='qa'
-            export ENV_NAME='qa'
+            export AWS_PROFILE='qa' >> $GITHUB_OUTPUT
+            export ENV_NAME='qa' >> $GITHUB_OUTPUT
 
           elif [[ ${BRANCH_NAME} = "master" ]]; then
-            export AWS_PROFILE='prod'
-            export ENV_NAME='prod'
+            export AWS_PROFILE='prod' >> $GITHUB_OUTPUT
+            export ENV_NAME='prod' >> $GITHUB_OUTPUT
 
           else
             echo "No branch selected"
           fi
 
           if [[ ${DEPLOY_ENVIRONMENT} == 'dev' ]]; then
-            export AWS_PROFILE='dev'
-            export ENV_NAME='dev'
-            export ROLE_ARN='arn:aws:iam::1:role/Deployer'
+            export AWS_PROFILE='dev' >> $GITHUB_OUTPUT
+            export ENV_NAME='dev' >> $GITHUB_OUTPUT
+            export ROLE_ARN='arn:aws:iam::1:role/Deployer' >> $GITHUB_OUTPUT
 
           elif [[  ${DEPLOY_ENVIRONMENT} == 'qa' ]]; then
-            export AWS_PROFILE='qa'
-            export ENV_NAME='qa'
-            export ROLE_ARN='arn:aws:iam::2:role/Deployer'
+            export AWS_PROFILE='qa' >> $GITHUB_OUTPUT
+            export ENV_NAME='qa' >> $GITHUB_OUTPUT
+            export ROLE_ARN='arn:aws:iam::2:role/Deployer' >> $GITHUB_OUTPUT
 
           elif [[ ${DEPLOY_ENVIRONMENT} == 'prod' ]]; then
-            export AWS_PROFILE='prod'
-            export ENV_NAME='prod'
-            export ROLE_ARN='arn:aws:iam::3:role/Deployer'
+            export AWS_PROFILE='prod' >> $GITHUB_OUTPUT
+            export ENV_NAME='prod' >> $GITHUB_OUTPUT
+            export ROLE_ARN='arn:aws:iam::3:role/Deployer' >> $GITHUB_OUTPUT
 
           else
             echo "No environment selected."
           fi
-          echo $AWS_PROFILE
-          echo $ENV_NAME
           
       - name: initialization
         shell: bash
