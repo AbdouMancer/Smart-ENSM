@@ -37,8 +37,8 @@ jobs:
             export ENV_NAME='qa' >> $GITHUB_OUTPUT
 
           elif [[ ${BRANCH_NAME} = "master" ]]; then
-            export AWS_PROFILE='prod' >> $GITHUB_OUTPUT
-            export ENV_NAME='prod' >> $GITHUB_OUTPUT
+            echo "AWS_PROFILE=prod" >> $GITHUB_OUTPUT
+            echo "ENV_NAME=prod" >> $GITHUB_OUTPUT
 
           else
             echo "No branch selected"
@@ -55,9 +55,9 @@ jobs:
             export ROLE_ARN='arn:aws:iam::2:role/Deployer' >> $GITHUB_OUTPUT
 
           elif [[ ${DEPLOY_ENVIRONMENT} == 'prod' ]]; then
-            export AWS_PROFILE='prod' >> $GITHUB_OUTPUT
-            export ENV_NAME='prod' >> $GITHUB_OUTPUT
-            export ROLE_ARN='arn:aws:iam::3:role/Deployer' >> $GITHUB_OUTPUT
+            echo "AWS_PROFILE=prod" >> $GITHUB_OUTPUT
+            echo "ENV_NAME='prod" >> $GITHUB_OUTPUT
+            echo "ROLE_ARN=arn:aws:iam::3:role/Deployer" >> $GITHUB_OUTPUT
 
           else
             echo "No environment selected."
