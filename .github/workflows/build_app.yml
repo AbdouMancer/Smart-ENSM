@@ -2,12 +2,6 @@ name: build_app
 on:
   workflow_dispatch:
     inputs:  
-      repo_name:
-        # add the repo name
-        description: 'Repository name'
-        required: true
-        default: ''
-      
       branch_name:
         # add the branch name
         description: 'Branch name'
@@ -25,10 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: |
+      - name: export variables
+        run: |
           #!/bin/bash
-          pwd
-          ls
           export AWS_DEFAULT_REGION='us-east-1'
           BRANCH_NAME=${{ github.event.inputs.branch_name }}
           DEPLOY_ENVIRONMENT=${{ github.event.inputs.deploy_env }}
@@ -68,8 +61,12 @@ jobs:
           else
             echo "No environment selected."
           fi
-
-          ### init.sh
+          
+      - name: initialization
+        run: |
+          #!/bin/bash
+          echo $AWS_PROFILE
+          echo $ENV_NAME
           WORK_DIR=$(pwd)
           export WORK_DIR
 
@@ -80,7 +77,9 @@ jobs:
 
           install_dependencies
           
-          ### npm validation
+      - name: npm validation
+        run: |
+          #!/bin/bash
           function validate_sam_template(){
               echo "Validate SAM.yaml template"
               npm run validate:sam
@@ -94,7 +93,9 @@ jobs:
           validate_sam_template
           lint_code
           
-          ### nmp build
+      - name: npm build
+        run: |
+          #!/bin/bash
           function build_lambdas(){
               echo "Build lambdas"
               npm run build:lambda
@@ -102,7 +103,9 @@ jobs:
 
           build_lambdas
           
-          ### npm tests
+      - name: npm test
+        run: |
+          #!/bin/bash
           function unit_tests(){
               echo "Run unit tests"
               npm run test:unit
@@ -110,10 +113,13 @@ jobs:
 
           unit_tests
           
-          ### npm s3 upload
+      - name: npm s3 upload
+        run: |
+          #!/bin/bash
           function upload_files_to_s3() {
               echo "Uploading API definition to S3 bucket"
               npm run "upload:api:${ENV_NAME}"
           }
 
           upload_files_to_s3
+          
