@@ -20,8 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: export variables
+        shell: bash
         run: |
-          #!/bin/bash
           export AWS_DEFAULT_REGION='us-east-1'
           BRANCH_NAME=${{ github.event.inputs.branch_name }}
           DEPLOY_ENVIRONMENT=${{ github.event.inputs.deploy_env }}
@@ -61,10 +61,12 @@ jobs:
           else
             echo "No environment selected."
           fi
+          echo $AWS_PROFILE
+          echo $ENV_NAME
           
       - name: initialization
+        shell: bash
         run: |
-          #!/bin/bash
           echo $AWS_PROFILE
           echo $ENV_NAME
           WORK_DIR=$(pwd)
