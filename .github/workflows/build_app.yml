@@ -16,6 +16,7 @@ on:
 
 jobs:
   build_app:
+    timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -119,7 +120,7 @@ jobs:
           #!/bin/bash
           function upload_files_to_s3() {
               echo "Uploading API definition to S3 bucket"
-              npm run "upload:api:${ENV_NAME}"
+              npm run "upload:api:${{ steps.vars.outputs.ENV_NAME }}"
           }
 
           upload_files_to_s3
