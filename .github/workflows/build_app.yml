@@ -20,6 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: export variables
+        id: vars
         shell: bash
         run: |
           export AWS_DEFAULT_REGION='us-east-1'
@@ -67,8 +68,8 @@ jobs:
       - name: initialization
         shell: bash
         run: |
-          echo $AWS_PROFILE
-          echo $ENV_NAME
+          echo ${{ steps.vars.outputs.AWS_PROFILE }}
+          echo ${{ steps.vars.outputs.ENV_NAME }}
           WORK_DIR=$(pwd)
           export WORK_DIR
 
