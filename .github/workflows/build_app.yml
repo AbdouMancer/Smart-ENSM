@@ -80,8 +80,8 @@ jobs:
           install_dependencies
           
       - name: npm validation
+        shell: bash
         run: |
-          #!/bin/bash
           function validate_sam_template(){
               echo "Validate SAM.yaml template"
               npm run validate:sam
@@ -96,8 +96,8 @@ jobs:
           lint_code
           
       - name: npm build
+        shell: bash
         run: |
-          #!/bin/bash
           function build_lambdas(){
               echo "Build lambdas"
               npm run build:lambda
@@ -106,8 +106,8 @@ jobs:
           build_lambdas
           
       - name: npm test
+        shell: bash
         run: |
-          #!/bin/bash
           function unit_tests(){
               echo "Run unit tests"
               npm run test:unit
@@ -116,8 +116,8 @@ jobs:
           unit_tests
           
       - name: npm s3 upload
+        shell: bash
         run: |
-          #!/bin/bash
           function upload_files_to_s3() {
               echo "Uploading API definition to S3 bucket"
               npm run "upload:api:${{ steps.vars.outputs.ENV_NAME }}"
