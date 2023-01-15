@@ -23,11 +23,9 @@ jobs:
       - name: install node 14
         shell: bash
         run: |
-          node -v
           sudo npm cache clean -f
           sudo npm install -g n
           sudo n 14.19.0
-          node -v
           
       - name: export variables
         id: vars
