@@ -20,6 +20,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+      - name: install node 14
+        shell: bash
+        run: |
+          curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash - && sudo apt-get update -y && sudo apt-get install -y nodejs
+          node -v
+          
       - name: export variables
         id: vars
         shell: bash
@@ -27,9 +33,6 @@ jobs:
           export AWS_DEFAULT_REGION='us-east-1'
           BRANCH_NAME=${{ github.event.inputs.branch_name }}
           DEPLOY_ENVIRONMENT=${{ github.event.inputs.deploy_env }}
-          sudo apt-get remove -y nodejs
-          curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash - && sudo apt-get install -y nodejs
-          node -v
           
           if [[ ${BRANCH_NAME} == "develop" ]] || [[ ${BRANCH_NAME} == "direct-develop" ]] || [[ ${BRANCH_NAME} == "direct-int" ]] || [[ ${BRANCH_NAME} =~ ^feature.*$ ]] || [[ ${BRANCH_NAME} =~ ^bugfix.*$ ]]; then
             echo "AWS_PROFILE=dev" >> $GITHUB_OUTPUT
