@@ -23,6 +23,7 @@ jobs:
       - name: install node 14
         shell: bash
         run: |
+          node -v
           curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash - && sudo apt-get update -y && sudo apt-get install -y nodejs
           node -v
           
