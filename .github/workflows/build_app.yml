@@ -27,6 +27,7 @@ jobs:
           export AWS_DEFAULT_REGION='us-east-1'
           BRANCH_NAME=${{ github.event.inputs.branch_name }}
           DEPLOY_ENVIRONMENT=${{ github.event.inputs.deploy_env }}
+          node -v
           
           if [[ ${BRANCH_NAME} == "develop" ]] || [[ ${BRANCH_NAME} == "direct-develop" ]] || [[ ${BRANCH_NAME} == "direct-int" ]] || [[ ${BRANCH_NAME} =~ ^feature.*$ ]] || [[ ${BRANCH_NAME} =~ ^bugfix.*$ ]]; then
             echo "AWS_PROFILE=dev" >> $GITHUB_OUTPUT
