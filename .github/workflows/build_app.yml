@@ -24,7 +24,9 @@ jobs:
         shell: bash
         run: |
           node -v
-          curl -fsSL https://deb.nodesource.com/setup_14.x | sudo -E bash - && sudo apt-get update -y && sudo apt-get install -y nodejs
+          sudo npm cache clean -f
+          sudo npm install -g n
+          sudo n 14.19.0
           node -v
           
       - name: export variables
